@@ -12,13 +12,16 @@ import {
   ShieldCheck,
   Download,
   Flag,
-  History
+  History,
+  LogOut,
+  UserCheck
 } from 'lucide-react';
 import { GraphicStudio } from './components/GraphicStudio';
 import { CmsQueue } from './components/CmsQueue';
 import { PublisherRunner } from './components/PublisherRunner';
 import { CodeExplorer } from './components/CodeExplorer';
 import { SetupGuide } from './components/SetupGuide';
+import { LoginScreen } from './components/LoginScreen';
 import { PostItem } from './types';
 import {
   getInitialPosts,
@@ -29,8 +32,14 @@ import {
   fetchCloudPosts,
   syncPostToCloud
 } from './utils/postStorage';
+import {
+  AuthSession,
+  getStoredSession,
+  clearStoredSession
+} from './utils/supabaseAuth';
 
 export default function App() {
+  const [session, setSession] = useState<AuthSession | null>(getStoredSession);
   const [activeTab, setActiveTab] = useState<'studio' | 'queue' | 'publisher' | 'code' | 'setup'>('studio');
   const [selectedPublishPostId, setSelectedPublishPostId] = useState<number | null>(null);
 
@@ -140,8 +149,17 @@ export default function App() {
     }
   };
 
+  const handleSignOut = () => {
+    clearStoredSession();
+    setSession(null);
+  };
+
+  // If not authenticated, render the sigma Supabase Auth Login Screen
+  if (!session) {
+    return <LoginScreen onLoginSuccess={(newSession) => setSession(newSession)} />;
+  }
+
   const scheduledCount = posts.filter((p) => p.status === 'Scheduled').length;
-  const postedCount = posts.filter((p) => p.status === 'Posted').length;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-red-500 selection:text-white">
@@ -163,20 +181,39 @@ export default function App() {
             </div>
           </div>
 
-          <div className="hidden md:flex items-center gap-3 text-xs">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/80 rounded-lg border border-slate-700 text-slate-300">
+          <div className="flex items-center gap-3 text-xs">
+            <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/80 rounded-lg border border-slate-700 text-slate-300">
               <History className="w-3.5 h-3.5 text-emerald-400" />
               <span>
-                Post History: <strong className="text-white">{posts.length}</strong> saved
+                Post History: <strong className="text-white">{posts.length}</strong>
               </span>
             </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/80 rounded-lg border border-slate-700 text-slate-300">
-              <Database className="w-3.5 h-3.5 text-sky-400" />
-              <span>Vercel + Supabase Active</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/80 rounded-lg border border-slate-700 text-slate-300">
+
+            <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/80 rounded-lg border border-slate-700 text-slate-300">
               <Instagram className="w-3.5 h-3.5 text-pink-400" />
               <span>@formula1.bd</span>
+            </div>
+
+            {/* Sigma Driver Profile & Sign Out */}
+            <div className="flex items-center gap-2 pl-2 border-l border-slate-800">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs">
+                <div className="w-5 h-5 rounded-full bg-red-600/20 text-red-400 border border-red-500/40 flex items-center justify-center text-[10px] font-black uppercase">
+                  {session.user?.email ? session.user.email[0].toUpperCase() : 'P'}
+                </div>
+                <span className="text-slate-300 font-mono text-[11px] truncate max-w-[150px]">
+                  {session.user?.email || 'driver@formula1.bd'}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-950/80 hover:text-rose-300 text-slate-400 text-xs font-semibold border border-slate-700/80 transition flex items-center gap-1.5 cursor-pointer"
+                title="Sign out of Paddock Club"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Exit</span>
+              </button>
             </div>
           </div>
         </div>
