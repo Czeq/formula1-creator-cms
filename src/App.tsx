@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Layers,
   Database,
@@ -11,7 +11,8 @@ import {
   Clock,
   ShieldCheck,
   Download,
-  Flag
+  Flag,
+  History
 } from 'lucide-react';
 import { GraphicStudio } from './components/GraphicStudio';
 import { CmsQueue } from './components/CmsQueue';
@@ -19,40 +20,95 @@ import { PublisherRunner } from './components/PublisherRunner';
 import { CodeExplorer } from './components/CodeExplorer';
 import { SetupGuide } from './components/SetupGuide';
 import { PostItem } from './types';
+import {
+  getInitialPosts,
+  loadPersistentPosts,
+  savePostsPersistent,
+  deletePostPersistent,
+  fetchCloudPosts,
+  syncPostToCloud
+} from './utils/postStorage';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'studio' | 'queue' | 'publisher' | 'code' | 'setup'>('studio');
 
-  // Initial Sample Posts for Formula 1 BD
-  const [posts, setPosts] = useState<PostItem[]>([
-    {
-      id: 1,
-      title: 'BANGLADESH MOTORSPORT FUTURE: 2026 ROADMAP UNVEILED',
-      image_path: 'ready/f1bd_1774029300_1.jpg',
-      caption: 'The future of motorsport representation begins now. High-speed engineering, grassroots talent, and an unstoppable trajectory on the world stage.\n\n#formula1bd #f1 #f1bangladesh #motorsport #racing',
-      post_timestamp: Math.floor(Date.now() / 1000) + 1800, // Due in 30 mins
-      status: 'Scheduled',
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: 2,
-      title: 'OSCAR PIASTRI STORMS TO SHANGHAI POLE UNDER THE LIGHTS',
-      image_path: 'published/f1bd_1773992400_2.jpg',
-      caption: 'A blistering final sector puts McLaren on pole position in Shanghai! Pure commitment through Turn 1.\n\n#f1 #formula1bd #mclaren #shanghaigp #poleposition',
-      post_timestamp: Math.floor(Date.now() / 1000) - 3600 * 24, // Yesterday
-      status: 'Posted',
-      created_at: new Date(Date.now() - 3600 * 24 * 1000).toISOString(),
-    }
-  ]);
+  // Synchronously initialize posts from localStorage for instant, zero-flicker render
+  const [posts, setPosts] = useState<PostItem[]>(getInitialPosts);
+  const [isCloudSynced, setIsCloudSynced] = useState<boolean>(true);
 
+  // 1. On Mount: Load full high-res data from IndexedDB and sync from Supabase Cloud
+  useEffect(() => {
+    let isMounted = true;
+
+    // Load from IndexedDB (restores ultra-res images without localStorage quota limits)
+    loadPersistentPosts().then((persistent) => {
+      if (isMounted && persistent && persistent.length > 0) {
+        setPosts((current) => {
+          // Merge keeping any newly scheduled posts
+          const map = new Map<number, PostItem>();
+          persistent.forEach((p) => map.set(p.id, p));
+          current.forEach((c) => {
+            if (!map.has(c.id)) {
+              map.set(c.id, c);
+            }
+          });
+          return Array.from(map.values()).sort((a, b) => b.post_timestamp - a.post_timestamp);
+        });
+      }
+    });
+
+    // Check Supabase Cloud via /api/posts for cross-device history
+    fetchCloudPosts().then((cloudPosts) => {
+      if (isMounted && cloudPosts && cloudPosts.length > 0) {
+        setPosts((prev) => {
+          const map = new Map<number, PostItem>();
+          prev.forEach((p) => map.set(p.id, p));
+          cloudPosts.forEach((cp) => {
+            // Avoid duplicate by title or id
+            const exists = Array.from(map.values()).some(
+              (x) => x.title === cp.title || (cp.cloud_id && x.cloud_id === cp.cloud_id)
+            );
+            if (!exists) {
+              map.set(cp.id, cp);
+            }
+          });
+          return Array.from(map.values()).sort((a, b) => b.post_timestamp - a.post_timestamp);
+        });
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // 2. Persist to localStorage & IndexedDB whenever posts state changes
+  useEffect(() => {
+    savePostsPersistent(posts);
+  }, [posts]);
+
+  // Handle scheduling / saving a new graphic to history & queue
   const handleSchedulePost = (newPostData: Omit<PostItem, 'id' | 'status'>) => {
     const newId = posts.length > 0 ? Math.max(...posts.map((p) => p.id)) + 1 : 1;
     const newPost: PostItem = {
       ...newPostData,
       id: newId,
       status: 'Scheduled',
+      created_at: new Date().toISOString(),
     };
+
     setPosts((prev) => [newPost, ...prev]);
+
+    // Sync to Supabase in background
+    setIsCloudSynced(false);
+    syncPostToCloud(newPost).then((res) => {
+      setIsCloudSynced(true);
+      if (res.success && res.publicUrl) {
+        setPosts((prev) =>
+          prev.map((p) => (p.id === newId ? { ...p, image_public_url: res.publicUrl } : p))
+        );
+      }
+    });
   };
 
   const handleCompletePost = (postId: number) => {
@@ -66,10 +122,17 @@ export default function App() {
   };
 
   const handleDeletePost = (postId: number) => {
+    const target = posts.find((p) => p.id === postId);
     setPosts((prev) => prev.filter((p) => p.id !== postId));
+    deletePostPersistent(postId);
+
+    if (target?.cloud_id) {
+      fetch(`/api/posts?id=${target.cloud_id}`, { method: 'DELETE' }).catch(() => {});
+    }
   };
 
   const scheduledCount = posts.filter((p) => p.status === 'Scheduled').length;
+  const postedCount = posts.filter((p) => p.status === 'Posted').length;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-red-500 selection:text-white">
@@ -87,18 +150,20 @@ export default function App() {
                   Creator Studio
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400">@formula1.bd • Supabase • Meta Graph API v21.0</p>
+              <p className="text-[11px] text-slate-400">@formula1.bd • Supabase Cloud • Meta Graph API v21.0</p>
             </div>
           </div>
 
           <div className="hidden md:flex items-center gap-3 text-xs">
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/80 rounded-lg border border-slate-700 text-slate-300">
-              <span className="w-2 h-2 rounded-full bg-emerald-400" />
-              <span>Canvas: 1080×1080 (1:1) / 1080×1350 (4:5)</span>
+              <History className="w-3.5 h-3.5 text-emerald-400" />
+              <span>
+                Post History: <strong className="text-white">{posts.length}</strong> saved
+              </span>
             </div>
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/80 rounded-lg border border-slate-700 text-slate-300">
               <Database className="w-3.5 h-3.5 text-sky-400" />
-              <span>Supabase / SQLite</span>
+              <span>Vercel + Supabase Active</span>
             </div>
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/80 rounded-lg border border-slate-700 text-slate-300">
               <Instagram className="w-3.5 h-3.5 text-pink-400" />
@@ -130,12 +195,10 @@ export default function App() {
             }`}
           >
             <Database className="w-4 h-4 text-sky-400" />
-            <span>Queue & Supabase Archive</span>
-            {scheduledCount > 0 && (
-              <span className="px-1.5 py-0.2 bg-red-500/20 text-red-300 rounded text-[10px] font-mono">
-                {scheduledCount}
-              </span>
-            )}
+            <span>Queue & Post History</span>
+            <span className="px-1.5 py-0.2 bg-slate-800 text-slate-300 rounded text-[10px] font-mono border border-slate-700">
+              {posts.length}
+            </span>
           </button>
 
           <button
@@ -148,6 +211,11 @@ export default function App() {
           >
             <Terminal className="w-4 h-4 text-emerald-400" />
             <span>Graph API Publisher Daemon</span>
+            {scheduledCount > 0 && (
+              <span className="px-1.5 py-0.2 bg-amber-500/20 text-amber-300 rounded text-[10px] font-mono border border-amber-500/30">
+                {scheduledCount}
+              </span>
+            )}
           </button>
 
           <button

@@ -400,7 +400,7 @@ export const GraphicStudio: React.FC<GraphicStudioProps> = ({
     };
   }, [photoUrl, effectiveTemplateUrl, headlineText, bounds, transforms, f1LogoPos, f1LogoWidth, f1LogoY, enableScrim, canvasWidth, canvasHeight]);
 
-  // Handle Export JPG (Maximum 98% Fidelity)
+  // Handle Export JPG (Maximum 98% Fidelity + Auto-Save to Post History)
   const handleExportJpg = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -411,13 +411,29 @@ export const GraphicStudio: React.FC<GraphicStudioProps> = ({
       link.download = `formula1bd_${Date.now()}_${canvasWidth}x${canvasHeight}.jpg`;
       link.href = dataUrl;
       link.click();
-      showToast(`Downloaded ultra-crisp ${canvasWidth}×${canvasHeight} JPEG!`);
+
+      // Automatically preserve generated graphic in post history
+      if (headlineText.trim()) {
+        const targetDate = new Date(`${scheduleDate}T${scheduleTime}:00`);
+        const epoch = Math.floor(targetDate.getTime() / 1000);
+        onSchedulePost({
+          title: headlineText.trim().toUpperCase(),
+          image_path: `ready/f1bd_${epoch}_${Date.now()}.jpg`,
+          caption: caption.trim(),
+          post_timestamp: epoch,
+          imageDataUrl: dataUrl,
+          previewUrl: photoUrl
+        });
+        showToast(`Downloaded JPEG and saved to Post History!`);
+      } else {
+        showToast(`Downloaded ultra-crisp ${canvasWidth}×${canvasHeight} JPEG!`);
+      }
     } catch {
-      showToast('Direct download blocked by cross-origin. Use Save to Queue.');
+      showToast('Direct download blocked by cross-origin. Use Save to Queue & History.');
     }
   };
 
-  // Handle Schedule Post to Local Queue
+  // Handle Schedule Post to Local Queue & History
   const handleScheduleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!headlineText.trim()) {
@@ -429,7 +445,7 @@ export const GraphicStudio: React.FC<GraphicStudioProps> = ({
     let imageDataUrl: string | undefined = undefined;
     if (canvas) {
       try {
-        imageDataUrl = canvas.toDataURL('image/jpeg', 0.98);
+        imageDataUrl = canvas.toDataURL('image/jpeg', 0.95);
       } catch {
         imageDataUrl = undefined;
       }
@@ -448,31 +464,43 @@ export const GraphicStudio: React.FC<GraphicStudioProps> = ({
     });
 
     setScheduledSuccess(true);
-    showToast('Post scheduled successfully into queue!');
+    showToast('Graphic saved to Queue & Post History!');
     setTimeout(() => setScheduledSuccess(false), 4000);
   };
 
   // Handle Direct Supabase Cloud Sync
   const handlePushToSupabase = async () => {
+    if (!headlineText.trim()) {
+      showToast('Please enter a headline');
+      return;
+    }
     setIsSyncingSupabase(true);
     try {
       const targetDate = new Date(`${scheduleDate}T${scheduleTime}:00`);
       const canvas = canvasRef.current;
-      const dataUrl = canvas ? canvas.toDataURL('image/jpeg', 0.98) : photoUrl;
+      const dataUrl = canvas ? canvas.toDataURL('image/jpeg', 0.95) : photoUrl;
 
-      const res = await fetch("https://bnhbebhffosechglrlhf.supabase.co/rest/v1/posts", {
+      // Always save locally to queue & history first
+      const epoch = Math.floor(targetDate.getTime() / 1000);
+      onSchedulePost({
+        title: headlineText.trim().toUpperCase(),
+        image_path: `ready/f1bd_${epoch}_${Date.now()}.jpg`,
+        caption: caption.trim(),
+        post_timestamp: epoch,
+        imageDataUrl: dataUrl,
+        previewUrl: photoUrl
+      });
+
+      // Then sync to Vercel Serverless Function & Supabase
+      const res = await fetch("/api/posts", {
         method: "POST",
         headers: {
-          "apikey": "sb_publishable_JhM4SPWE04fbv2jMVNjD0A_RebSTPKe",
-          "Authorization": "Bearer sb_publishable_JhM4SPWE04fbv2jMVNjD0A_RebSTPKe",
-          "Content-Type": "application/json",
-          "Prefer": "return=representation"
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
           title: headlineText.trim().toUpperCase(),
           caption: caption.trim(),
-          image_storage_path: `f1bd_${Date.now()}.jpg`,
-          image_public_url: dataUrl.length < 500 ? dataUrl : 'f1bd_local_preview.jpg',
+          imageDataUrl: dataUrl,
           scheduled_at: targetDate.toISOString(),
           status: 'scheduled',
           target_platforms: ['instagram']
@@ -480,12 +508,12 @@ export const GraphicStudio: React.FC<GraphicStudioProps> = ({
       });
 
       if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(errText);
+        showToast("Saved to Post History! (Local & IndexedDB active)");
+      } else {
+        showToast("☁️ Synced to Supabase Cloud & Post History!");
       }
-      showToast("☁️ Post synced directly to Supabase cloud database!");
     } catch (err: any) {
-      showToast(`Supabase Sync: ${err?.message || err}`);
+      showToast(`Saved to Post History! (${err?.message || 'Local active'})`);
     } finally {
       setIsSyncingSupabase(false);
     }
@@ -1027,7 +1055,7 @@ export const GraphicStudio: React.FC<GraphicStudioProps> = ({
                   className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold text-xs shadow-lg active:scale-[0.98] transition-all cursor-pointer"
                 >
                   <Send className="w-3.5 h-3.5" />
-                  <span>Save to Queue</span>
+                  <span>Save to Queue & History</span>
                 </button>
 
                 <button

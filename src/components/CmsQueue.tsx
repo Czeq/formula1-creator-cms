@@ -1,5 +1,22 @@
-import React from 'react';
-import { Database, Clock, CheckCircle2, AlertCircle, Trash2, Send, ExternalLink } from 'lucide-react';
+import React, { useState } from 'react';
+import {
+  Database,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  Trash2,
+  Send,
+  ExternalLink,
+  Download,
+  Copy,
+  Check,
+  Maximize2,
+  X,
+  FileJson,
+  Upload,
+  Sparkles,
+  Layers
+} from 'lucide-react';
 import { PostItem } from '../types';
 
 interface CmsQueueProps {
@@ -13,10 +30,20 @@ export const CmsQueue: React.FC<CmsQueueProps> = ({
   onTriggerPublish,
   onDeletePost,
 }) => {
+  const [filter, setFilter] = useState<'all' | 'scheduled' | 'posted'>('all');
+  const [inspectedPost, setInspectedPost] = useState<PostItem | null>(null);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+
   const currentEpoch = Math.floor(Date.now() / 1000);
   const scheduledPosts = posts.filter((p) => p.status === 'Scheduled');
   const postedRecords = posts.filter((p) => p.status === 'Posted');
-  const failedPosts = posts.filter((p) => p.status === 'Failed');
+
+  const filteredPosts =
+    filter === 'scheduled'
+      ? scheduledPosts
+      : filter === 'posted'
+      ? postedRecords
+      : posts;
 
   const formatTimestamp = (ts: number): string => {
     try {
@@ -45,31 +72,113 @@ export const CmsQueue: React.FC<CmsQueueProps> = ({
     return `Due in ${hours}h ${remMins}m`;
   };
 
+  const handleCopyCaption = (post: PostItem) => {
+    navigator.clipboard.writeText(post.caption);
+    setCopiedId(post.id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleDownloadImage = (post: PostItem) => {
+    const src = post.imageDataUrl || post.image_public_url || post.previewUrl;
+    if (!src) return;
+    const a = document.createElement('a');
+    a.href = src;
+    a.download = `formula1bd_${post.id}_${Date.now()}.jpg`;
+    a.click();
+  };
+
+  const handleExportJson = () => {
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(posts, null, 2));
+    const a = document.createElement('a');
+    a.href = dataStr;
+    a.download = `formula1bd_post_history_backup_${Date.now()}.json`;
+    a.click();
+  };
+
   return (
     <div className="space-y-8">
+      {/* Full-Resolution Image Inspector Modal */}
+      {inspectedPost && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 overflow-auto">
+          <div className="relative max-w-4xl w-full bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div>
+                <span className="text-[11px] font-mono text-red-400">POST #{inspectedPost.id}</span>
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                  {inspectedPost.title}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInspectedPost(null)}
+                className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-center max-h-[70vh] overflow-hidden bg-slate-950 rounded-xl border border-slate-800/80 p-2">
+              <img
+                src={inspectedPost.imageDataUrl || inspectedPost.image_public_url || inspectedPost.previewUrl || ''}
+                alt={inspectedPost.title}
+                className="max-h-[65vh] w-auto object-contain rounded shadow-2xl"
+              />
+            </div>
+
+            <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 text-xs font-mono text-slate-300 whitespace-pre-wrap">
+              {inspectedPost.caption}
+            </div>
+
+            <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
+              <span>Target: {formatTimestamp(inspectedPost.post_timestamp)}</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleCopyCaption(inspectedPost)}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition flex items-center gap-1.5"
+                >
+                  {copiedId === inspectedPost.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedId === inspectedPost.id ? 'Copied!' : 'Copy Caption'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDownloadImage(inspectedPost)}
+                  className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold transition flex items-center gap-1.5"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download Ultra-Res</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Top Stats Banner */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm">
           <span className="text-xs text-slate-400 font-medium uppercase tracking-wider block">
-            Total In SQLite
+            Total Post History
           </span>
           <span className="text-2xl font-bold text-slate-100 mt-1 block">
             {posts.length}
           </span>
-          <span className="text-[11px] text-slate-500 mt-1 block">formula1_posts.db</span>
+          <span className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1">
+            <CheckCircle2 className="w-3 h-3" /> Saved on Vercel & Cloud
+          </span>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm">
           <span className="text-xs text-amber-400 font-medium uppercase tracking-wider block">
             Scheduled Queue
           </span>
           <span className="text-2xl font-bold text-amber-400 mt-1 block">
             {scheduledPosts.length}
           </span>
-          <span className="text-[11px] text-slate-500 mt-1 block">Awaiting daemon cycle</span>
+          <span className="text-[11px] text-slate-500 mt-1 block">Awaiting publisher cycle</span>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm">
           <span className="text-xs text-emerald-400 font-medium uppercase tracking-wider block">
             Historical Posted
           </span>
@@ -79,89 +188,222 @@ export const CmsQueue: React.FC<CmsQueueProps> = ({
           <span className="text-[11px] text-slate-500 mt-1 block">status == 'Posted'</span>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm">
           <span className="text-xs text-slate-400 font-medium uppercase tracking-wider block">
-            Engine Mode
+            Persistence Engine
           </span>
           <span className="text-sm font-mono font-bold text-sky-400 mt-2 block">
-            PRAGMA WAL;
+            IndexedDB + Supabase
           </span>
-          <span className="text-[11px] text-slate-500 mt-0.5 block">check_same_thread=False</span>
+          <span className="text-[11px] text-slate-500 mt-0.5 block">100% Retained on Reload</span>
         </div>
       </div>
 
-      {/* SECTION 1: Scheduled Queue */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+      {/* Filter and Backup Bar */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-slate-900/80 border border-slate-800 rounded-xl">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setFilter('all')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              filter === 'all'
+                ? 'bg-red-950/70 text-red-300 border border-red-800'
+                : 'text-slate-400 hover:text-white bg-slate-800/50'
+            }`}
+          >
+            All History ({posts.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilter('scheduled')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              filter === 'scheduled'
+                ? 'bg-amber-950/70 text-amber-300 border border-amber-800'
+                : 'text-slate-400 hover:text-white bg-slate-800/50'
+            }`}
+          >
+            Scheduled Queue ({scheduledPosts.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilter('posted')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              filter === 'posted'
+                ? 'bg-emerald-950/70 text-emerald-300 border border-emerald-800'
+                : 'text-slate-400 hover:text-white bg-slate-800/50'
+            }`}
+          >
+            Posted Archive ({postedRecords.length})
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2 text-xs">
+          <button
+            type="button"
+            onClick={handleExportJson}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition border border-slate-700/80"
+            title="Download full post history backup JSON"
+          >
+            <FileJson className="w-3.5 h-3.5 text-sky-400" />
+            <span>Export History JSON</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Main Post History Feed */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-md">
         <div className="flex items-center justify-between pb-4 border-b border-slate-800">
           <div className="flex items-center gap-2">
-            <Clock className="w-5 h-5 text-amber-400" />
-            <h3 className="text-lg font-semibold text-slate-100">Scheduled Posts Queue</h3>
+            <Layers className="w-5 h-5 text-red-400" />
+            <h3 className="text-lg font-semibold text-slate-100">
+              {filter === 'scheduled'
+                ? 'Scheduled Posts Queue'
+                : filter === 'posted'
+                ? 'Historical Posted Archive'
+                : 'Complete Post History & Queue'}
+            </h3>
           </div>
           <span className="text-xs text-slate-400">
-            Publisher polls: <code className="text-amber-300 font-mono">post_timestamp &lt;= {currentEpoch}</code>
+            {filteredPosts.length} items recorded
           </span>
         </div>
 
-        {scheduledPosts.length === 0 ? (
-          <div className="py-12 text-center text-slate-500 text-sm">
-            No posts currently scheduled. Create a new post in the Graphic Studio to queue one up.
+        {filteredPosts.length === 0 ? (
+          <div className="py-16 text-center text-slate-500 text-sm space-y-2">
+            <p>No posts found in this view.</p>
+            <p className="text-xs text-slate-600">
+              Create a new graphic in the Graphic Studio and click "Save to Queue & History" to record one.
+            </p>
           </div>
         ) : (
           <div className="mt-4 divide-y divide-slate-800/80">
-            {scheduledPosts.map((post) => {
-              const isDue = post.post_timestamp <= currentEpoch;
+            {filteredPosts.map((post) => {
+              const isDue = post.post_timestamp <= currentEpoch && post.status === 'Scheduled';
+              const imageSrc = post.imageDataUrl || post.image_public_url || post.previewUrl;
+
               return (
-                <div key={post.id} className="py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex items-start gap-4">
-                    {post.imageDataUrl ? (
-                      <img
-                        src={post.imageDataUrl}
-                        alt={post.title}
-                        className="w-16 h-20 rounded-md object-cover border border-slate-700 flex-shrink-0"
-                      />
-                    ) : (
-                      <div className="w-16 h-20 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-500 text-xs flex-shrink-0">
-                        1170x1463
+                <div
+                  key={post.id}
+                  className="py-5 flex flex-col md:flex-row md:items-center justify-between gap-5 group hover:bg-slate-850/40 px-2 rounded-xl transition"
+                >
+                  <div className="flex items-start gap-4 flex-1">
+                    {/* Thumbnail with full inspect trigger */}
+                    <div
+                      className="relative w-20 h-24 rounded-lg overflow-hidden bg-slate-950 border border-slate-800 flex-shrink-0 cursor-pointer group/img"
+                      onClick={() => setInspectedPost(post)}
+                      title="Click to view full resolution"
+                    >
+                      {imageSrc ? (
+                        <img
+                          src={imageSrc}
+                          alt={post.title}
+                          className="w-full h-full object-cover group-hover/img:scale-105 transition duration-200"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-[10px] text-slate-600 font-mono">
+                          NO IMG
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition flex items-center justify-center text-white">
+                        <Maximize2 className="w-4 h-4" />
                       </div>
-                    )}
-                    <div>
-                      <div className="flex items-center gap-2">
+                    </div>
+
+                    <div className="space-y-1.5 flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="text-xs font-mono px-2 py-0.5 bg-slate-800 text-slate-300 rounded border border-slate-700">
                           #{post.id}
                         </span>
-                        <h4 className="text-sm font-semibold text-slate-100">{post.title}</h4>
+                        <h4 className="text-sm font-bold text-slate-100 truncate">
+                          {post.title}
+                        </h4>
                         <span
                           className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                            isDue
+                            post.status === 'Posted'
+                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                              : isDue
                               ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse'
                               : 'bg-blue-500/10 text-blue-300 border border-blue-500/20'
                           }`}
                         >
-                          {getRelativeTime(post.post_timestamp)}
+                          {post.status === 'Posted'
+                            ? 'POSTED'
+                            : isDue
+                            ? 'DUE NOW'
+                            : getRelativeTime(post.post_timestamp)}
                         </span>
+                        {post.image_public_url && (
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-sky-950 text-sky-400 border border-sky-800/60">
+                            Cloud Synced
+                          </span>
+                        )}
                       </div>
-                      <p className="text-xs text-slate-400 mt-1 line-clamp-2">{post.caption}</p>
-                      <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 mt-2 font-mono">
+
+                      <p className="text-xs text-slate-400 font-mono whitespace-pre-wrap line-clamp-2 max-w-3xl">
+                        {post.caption}
+                      </p>
+
+                      <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 font-mono">
                         <span>Target: {formatTimestamp(post.post_timestamp)}</span>
                         <span>•</span>
-                        <span>Epoch: {post.post_timestamp}</span>
-                        <span>•</span>
                         <span>Staged: {post.image_path}</span>
+                        {post.created_at && (
+                          <>
+                            <span>•</span>
+                            <span>Created: {new Date(post.created_at).toLocaleDateString()}</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 self-end md:self-center">
+                  {/* Actions for this post */}
+                  <div className="flex flex-wrap items-center gap-2 self-end md:self-center">
                     <button
-                      onClick={() => onTriggerPublish(post)}
-                      className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-lg text-xs font-medium flex items-center gap-1.5 transition"
+                      type="button"
+                      onClick={() => handleCopyCaption(post)}
+                      className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-medium flex items-center gap-1.5 transition border border-slate-700"
+                      title="Copy caption and hashtags to clipboard"
                     >
-                      <Send className="w-3.5 h-3.5" />
-                      <span>Test Publish Now</span>
+                      {copiedId === post.id ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          <span className="text-emerald-400">Copied</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Caption</span>
+                        </>
+                      )}
                     </button>
+
+                    {imageSrc && (
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadImage(post)}
+                        className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs transition border border-slate-700"
+                        title="Download high-resolution image"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+
+                    {post.status === 'Scheduled' && (
+                      <button
+                        type="button"
+                        onClick={() => onTriggerPublish(post)}
+                        className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-lg text-xs font-medium flex items-center gap-1.5 transition"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        <span>Publish</span>
+                      </button>
+                    )}
+
                     <button
+                      type="button"
                       onClick={() => onDeletePost(post.id)}
-                      className="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-slate-800 transition"
+                      className="p-1.5 text-slate-500 hover:text-rose-400 rounded-lg hover:bg-slate-800 transition"
                       title="Delete post"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -172,95 +414,6 @@ export const CmsQueue: React.FC<CmsQueueProps> = ({
             })}
           </div>
         )}
-      </div>
-
-      {/* SECTION 2: Historical Archive (status == 'Posted') */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-            <h3 className="text-lg font-semibold text-slate-100">Historical Archive (status == 'Posted')</h3>
-          </div>
-          <span className="text-xs text-slate-400">
-            Moved to <code className="text-emerald-300 font-mono">/published/</code>
-          </span>
-        </div>
-
-        {postedRecords.length === 0 ? (
-          <div className="py-12 text-center text-slate-500 text-sm">
-            No historical records with status 'Posted' yet. Posts will appear here after the background publisher finishes Graph API container creation and media publish.
-          </div>
-        ) : (
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {postedRecords.map((post) => (
-              <div
-                key={post.id}
-                className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden hover:border-slate-700 transition flex flex-col"
-              >
-                {post.imageDataUrl && (
-                  <div className="w-full aspect-[4/5] bg-slate-900 overflow-hidden">
-                    <img
-                      src={post.imageDataUrl}
-                      alt={post.title}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                )}
-                <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/50">
-                        POSTED #{post.id}
-                      </span>
-                      <span className="text-[11px] text-slate-500">
-                        {formatTimestamp(post.post_timestamp)}
-                      </span>
-                    </div>
-                    <h4 className="text-sm font-semibold text-slate-100 mt-2">{post.title}</h4>
-                    <p className="text-xs text-slate-400 mt-1 line-clamp-3 font-mono leading-relaxed">
-                      {post.caption}
-                    </p>
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-800/80 text-[11px] text-slate-500 flex items-center justify-between">
-                    <span className="font-mono truncate max-w-[200px]">{post.image_path}</span>
-                    <button
-                      onClick={() => onDeletePost(post.id)}
-                      className="text-slate-500 hover:text-rose-400 transition"
-                      title="Remove record"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* SECTION 3: SQLite WAL Schema Card */}
-      <div className="bg-slate-950 border border-slate-800 rounded-xl p-5">
-        <div className="flex items-center gap-2 text-slate-300 text-sm font-semibold mb-2">
-          <Database className="w-4 h-4 text-sky-400" />
-          <span>SQLite WAL Schema Architecture</span>
-        </div>
-        <pre className="text-xs text-slate-400 bg-slate-900/90 p-4 rounded-lg overflow-x-auto font-mono border border-slate-800">
-{`-- Initialized via database.py with check_same_thread=False
-PRAGMA journal_mode=WAL;
-PRAGMA synchronous=NORMAL;
-
-CREATE TABLE posts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    image_path TEXT NOT NULL,
-    caption TEXT NOT NULL,
-    post_timestamp INTEGER NOT NULL,  -- Epoch seconds to eliminate timezone mismatch
-    status TEXT NOT NULL DEFAULT 'Scheduled' -- 'Scheduled' -> 'Posted' | 'Failed'
-);
-
-CREATE INDEX idx_posts_status_time ON posts(status, post_timestamp);`}
-        </pre>
       </div>
     </div>
   );

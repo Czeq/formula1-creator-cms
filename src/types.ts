@@ -7,6 +7,8 @@ export interface PostItem {
   status: 'Scheduled' | 'Posted' | 'Failed';
   imageDataUrl?: string;
   previewUrl?: string;
+  image_public_url?: string;
+  cloud_id?: string;
   created_at?: string;
 }
 
