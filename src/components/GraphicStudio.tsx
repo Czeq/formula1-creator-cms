@@ -23,7 +23,9 @@ import {
   Image as ImageIcon,
   Cloud,
   Flame,
-  LayoutGrid
+  LayoutGrid,
+  X,
+  FileUp
 } from 'lucide-react';
 import { PostItem } from '../types';
 
@@ -84,6 +86,8 @@ export const GraphicStudio: React.FC<GraphicStudioProps> = ({
   // Photo
   const [photoUrl, setPhotoUrl] = useState<string>('/sample_f1_post.jpg');
   const [photoFileName, setPhotoFileName] = useState<string>('sample_f1_post.jpg');
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [showInspectModal, setShowInspectModal] = useState<boolean>(false);
 
   // Photo Transforms: Zoom, Pan X, Pan Y, Rotation
   const [transforms, setTransforms] = useState(DEFAULT_TRANSFORMS);
@@ -116,21 +120,73 @@ export const GraphicStudio: React.FC<GraphicStudioProps> = ({
     }
   };
 
-  // Handle Photo File Upload
+  // Process File Object (from FileInput, Drag & Drop, or Clipboard Paste)
+  const processImageFile = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      showToast('Please upload an image file (PNG, JPG, WEBP, AVIF)');
+      return;
+    }
+    setPhotoFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        setPhotoUrl(event.target.result as string);
+        showToast(`Loaded ${file.name}`);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Handle Photo File Upload Input
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setPhotoFileName(file.name);
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setPhotoUrl(event.target.result as string);
-          showToast(`Uploaded ${file.name}`);
-        }
-      };
-      reader.readAsDataURL(file);
+      processImageFile(file);
     }
   };
+
+  // Drag and Drop Event Handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      processImageFile(files[0]);
+    }
+  };
+
+  // Global Clipboard Paste Listener (Ctrl + V)
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith('image/')) {
+          const file = items[i].getAsFile();
+          if (file) {
+            processImageFile(file);
+            showToast('Pasted image from clipboard');
+            break;
+          }
+        }
+      }
+    };
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, []);
 
   // Resolve overlay logo URL
   const effectiveTemplateUrl =
@@ -148,7 +204,7 @@ export const GraphicStudio: React.FC<GraphicStudioProps> = ({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: false });
     if (!ctx) return;
 
     canvas.width = canvasWidth;
@@ -172,11 +228,16 @@ export const GraphicStudio: React.FC<GraphicStudioProps> = ({
       const imgW = photoImg.naturalWidth || photoImg.width;
       const imgH = photoImg.naturalHeight || photoImg.height;
 
-      // Clear previous frame
-      ctx.clearRect(0, 0, cW, cH);
+      // Enable high-quality bicubic image smoothing
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+
+      // Clear previous frame with dark matte background
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, cW, cH);
 
       // =====================================================================
-      // LAYER 1: Draw the uploaded user photo (scaled to cover, applying pan, zoom, rotation)
+      // LAYER 1: Draw user photo with high-quality smoothing & transforms
       // =====================================================================
       const baseScale = Math.max(cW / Math.max(1, imgW), cH / Math.max(1, imgH));
       const effectiveScale = baseScale * transforms.zoom;
@@ -217,7 +278,7 @@ export const GraphicStudio: React.FC<GraphicStudioProps> = ({
       }
 
       // =====================================================================
-      // LAYER 2: Formula 1 BD Watermark Logo
+      // LAYER 2: Formula 1 BD Watermark Logo (High Quality Resampling)
       // =====================================================================
       const lw = f1LogoWidth;
       const aspect = (logoImg.naturalHeight || logoImg.height) / (logoImg.naturalWidth || logoImg.width || 1);
@@ -231,7 +292,7 @@ export const GraphicStudio: React.FC<GraphicStudioProps> = ({
       ctx.drawImage(logoImg, lx, ly, lw, lh);
 
       // =====================================================================
-      // LAYER 3: Render Headline Text with Roboto Black & Photoshop -50 tracking
+      // LAYER 3: Headline Text in Roboto Black & Photoshop -50 tracking
       // =====================================================================
       if (headlineText && headlineText.trim()) {
         const words = headlineText.trim().toUpperCase().split(/\s+/);
@@ -295,7 +356,7 @@ export const GraphicStudio: React.FC<GraphicStudioProps> = ({
             const charW = ctx.measureText(char).width;
 
             // Subtle drop shadow for legibility
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.88)';
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.90)';
             ctx.fillText(char, cursorX + 2, curY + 2);
 
             // Crisp headline text in Roboto Black
@@ -339,18 +400,18 @@ export const GraphicStudio: React.FC<GraphicStudioProps> = ({
     };
   }, [photoUrl, effectiveTemplateUrl, headlineText, bounds, transforms, f1LogoPos, f1LogoWidth, f1LogoY, enableScrim, canvasWidth, canvasHeight]);
 
-  // Handle Export JPG
+  // Handle Export JPG (Maximum 98% Fidelity)
   const handleExportJpg = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     try {
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.98);
       const link = document.createElement('a');
       link.download = `formula1bd_${Date.now()}_${canvasWidth}x${canvasHeight}.jpg`;
       link.href = dataUrl;
       link.click();
-      showToast(`Downloaded high-res ${canvasWidth}×${canvasHeight} JPEG!`);
+      showToast(`Downloaded ultra-crisp ${canvasWidth}×${canvasHeight} JPEG!`);
     } catch {
       showToast('Direct download blocked by cross-origin. Use Save to Queue.');
     }
@@ -368,7 +429,7 @@ export const GraphicStudio: React.FC<GraphicStudioProps> = ({
     let imageDataUrl: string | undefined = undefined;
     if (canvas) {
       try {
-        imageDataUrl = canvas.toDataURL('image/jpeg', 0.92);
+        imageDataUrl = canvas.toDataURL('image/jpeg', 0.98);
       } catch {
         imageDataUrl = undefined;
       }
@@ -397,7 +458,7 @@ export const GraphicStudio: React.FC<GraphicStudioProps> = ({
     try {
       const targetDate = new Date(`${scheduleDate}T${scheduleTime}:00`);
       const canvas = canvasRef.current;
-      const dataUrl = canvas ? canvas.toDataURL('image/jpeg', 0.9) : photoUrl;
+      const dataUrl = canvas ? canvas.toDataURL('image/jpeg', 0.98) : photoUrl;
 
       const res = await fetch("https://bnhbebhffosechglrlhf.supabase.co/rest/v1/posts", {
         method: "POST",
@@ -440,6 +501,53 @@ export const GraphicStudio: React.FC<GraphicStudioProps> = ({
         </div>
       )}
 
+      {/* Full-Resolution Modal Inspector */}
+      {showInspectModal && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 overflow-auto">
+          <div className="relative max-w-5xl w-full bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Maximize2 className="w-4 h-4 text-red-400" />
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                  Full 100% True Resolution Inspector ({canvasWidth}×{canvasHeight})
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowInspectModal(false)}
+                className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-center overflow-auto max-h-[75vh] p-2 bg-slate-950 rounded-xl border border-slate-800/80">
+              <img
+                src={canvasRef.current ? canvasRef.current.toDataURL('image/png') : photoUrl}
+                alt="Full resolution inspector"
+                className="max-w-none shadow-2xl rounded"
+                style={{
+                  width: `${Math.min(canvasWidth, 900)}px`,
+                  imageRendering: 'auto'
+                }}
+              />
+            </div>
+
+            <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
+              <span>Lossless 1080px Master Pipeline • Roboto Black Typography</span>
+              <button
+                type="button"
+                onClick={handleExportJpg}
+                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold transition flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download Ultra-Res JPEG</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Top Banner */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-4 rounded-xl bg-slate-900 border border-slate-800 shadow-md">
         <div>
@@ -450,7 +558,7 @@ export const GraphicStudio: React.FC<GraphicStudioProps> = ({
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-0.5">
-            Transparent Logo Watermark Overlays • 1:1 & 4:5 Aspect Ratios • Track Contrast Scrim
+            Ultra-Res Canvas • Drag & Drop Imagery • Transparent Logos • Track Contrast Scrim
           </p>
         </div>
 
@@ -621,7 +729,7 @@ export const GraphicStudio: React.FC<GraphicStudioProps> = ({
               </div>
             </div>
 
-            {/* Section 1: Headline & Imagery */}
+            {/* Section 1: Headline & Imagery with Drag & Drop */}
             <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-3.5 shadow-sm">
               <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-emerald-400" />
@@ -642,14 +750,42 @@ export const GraphicStudio: React.FC<GraphicStudioProps> = ({
                 />
               </div>
 
+              {/* Enhanced Drag and Drop Zone */}
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Background Photo
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
+                  <span>Background Photo</span>
+                  <span className="text-[10px] text-slate-400 font-normal">Supports Drag & Drop or Ctrl+V</span>
                 </label>
-                <div className="flex items-center gap-2">
-                  <label className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-medium cursor-pointer transition-colors shadow-sm">
-                    <Upload className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Choose Photo File...</span>
+
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={`relative rounded-xl border-2 border-dashed p-4 text-center transition-all cursor-pointer ${
+                    isDragging
+                      ? 'border-red-500 bg-red-950/30 scale-[1.01] shadow-lg shadow-red-500/20'
+                      : 'border-slate-700/80 hover:border-slate-500 bg-slate-950/60'
+                  }`}
+                >
+                  <label className="cursor-pointer block space-y-2">
+                    <div className="w-10 h-10 mx-auto rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-red-400">
+                      <FileUp className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-semibold text-slate-200 block">
+                        Drag and drop image here, or click to browse
+                      </span>
+                      <span className="text-[11px] text-slate-400 mt-0.5 block">
+                        PNG, JPG, WEBP • Max quality preserved
+                      </span>
+                    </div>
+
+                    <div className="pt-1 flex items-center justify-center gap-2">
+                      <span className="px-2.5 py-1 rounded bg-slate-800/80 text-[11px] font-mono text-slate-300 border border-slate-700 truncate max-w-[220px]">
+                        {photoFileName}
+                      </span>
+                    </div>
+
                     <input
                       type="file"
                       accept="image/*"
@@ -657,9 +793,6 @@ export const GraphicStudio: React.FC<GraphicStudioProps> = ({
                       className="hidden"
                     />
                   </label>
-                  <span className="text-[11px] text-slate-400 font-mono truncate max-w-[140px]">
-                    {photoFileName}
-                  </span>
                 </div>
               </div>
 
@@ -918,7 +1051,7 @@ export const GraphicStudio: React.FC<GraphicStudioProps> = ({
           </form>
         </div>
 
-        {/* RIGHT COLUMN: Live Canvas Preview */}
+        {/* RIGHT COLUMN: Live Canvas Preview with Drag & Drop & Full-Res Inspect */}
         <div className="lg:col-span-6 xl:col-span-7 space-y-4">
           <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 shadow-md">
             <div className="flex items-center justify-between mb-3">
@@ -932,6 +1065,16 @@ export const GraphicStudio: React.FC<GraphicStudioProps> = ({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
+                  onClick={() => setShowInspectModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium transition-colors border border-slate-700 shadow-sm"
+                  title="View full 100% pixel scale without scaling"
+                >
+                  <Maximize2 className="w-3.5 h-3.5 text-sky-400" />
+                  <span>Full Res Inspect</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={handleExportJpg}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition-colors border border-slate-700 shadow-sm"
                 >
@@ -941,23 +1084,40 @@ export const GraphicStudio: React.FC<GraphicStudioProps> = ({
               </div>
             </div>
 
-            {/* Canvas Display */}
-            <div className={`relative w-full bg-slate-950 rounded-lg overflow-hidden border border-slate-800 flex items-center justify-center shadow-inner group ${
-              aspectRatio === '1:1' ? 'aspect-square' : 'aspect-[1080/1350]'
-            }`}>
+            {/* Canvas Display with Direct Drag & Drop Support */}
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`relative w-full bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center shadow-inner group transition-all ${
+                aspectRatio === '1:1' ? 'aspect-square' : 'aspect-[1080/1350]'
+              } ${isDragging ? 'ring-4 ring-red-500/80 border-red-500' : ''}`}
+            >
               <canvas
                 ref={canvasRef}
                 className="w-full h-full object-contain"
-                style={{ imageRendering: 'auto' }}
+                style={{
+                  imageRendering: 'auto',
+                  transform: 'translateZ(0)',
+                  backfaceVisibility: 'hidden'
+                }}
               />
 
+              {/* Dragging Overlay */}
+              {isDragging && (
+                <div className="absolute inset-0 bg-red-950/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 text-white border-2 border-dashed border-red-400 animate-pulse pointer-events-none">
+                  <Upload className="w-12 h-12 text-red-400" />
+                  <span className="font-bold text-sm tracking-wide">Drop Motorsport Photo to Load</span>
+                </div>
+              )}
+
               {/* Resolution badge */}
-              <div className="absolute top-3 right-3 px-2 py-1 rounded bg-black/70 backdrop-blur text-[10px] font-mono text-slate-300 border border-white/10 pointer-events-none">
+              <div className="absolute top-3 right-3 px-2 py-1 rounded bg-black/75 backdrop-blur text-[10px] font-mono text-slate-300 border border-white/10 pointer-events-none">
                 {canvasWidth} × {canvasHeight} ({aspectRatio})
               </div>
 
               {/* Active Logo Variant Indicator */}
-              <div className="absolute top-3 left-3 px-2 py-1 rounded bg-black/70 backdrop-blur text-[10px] font-mono text-emerald-300 border border-emerald-500/20 pointer-events-none flex items-center gap-1">
+              <div className="absolute top-3 left-3 px-2 py-1 rounded bg-black/75 backdrop-blur text-[10px] font-mono text-emerald-300 border border-emerald-500/20 pointer-events-none flex items-center gap-1">
                 <Flame className="w-3 h-3 text-red-400" />
                 <span>
                   {f1LogoVersion === 'black_transparent' ? 'Black (Transparent)' : (f1LogoVersion === 'white_solid' ? 'Solid White' : 'White (Transparent)')}
@@ -980,8 +1140,8 @@ export const GraphicStudio: React.FC<GraphicStudioProps> = ({
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span>Supabase Cloud Integration:</span>
-                <span className="font-mono text-sky-400">https://bnhbebhffosechglrlhf.supabase.co</span>
+                <span>Direct Drag & Drop:</span>
+                <span className="font-mono text-sky-400">Active (Drop on canvas or paste with Ctrl+V)</span>
               </div>
             </div>
           </div>

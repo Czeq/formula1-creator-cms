@@ -551,7 +551,7 @@ with tab_studio:
         if render_err is not None:
             st.error(f"Render Error: {render_err}")
         elif rendered_image is not None:
-            st.image(rendered_image, use_container_width=True)
+            st.image(rendered_image, use_container_width=True, output_format="PNG")
 
             # Metadata Strip below preview
             st.markdown(
