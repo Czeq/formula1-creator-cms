@@ -2,12 +2,28 @@ import React, { useState } from 'react';
 import { Key, Shield, Globe, Terminal, Copy, Check, ExternalLink, HelpCircle } from 'lucide-react';
 
 export const SetupGuide: React.FC = () => {
-  const [metaToken, setMetaToken] = useState('');
-  const [igUserId, setIgUserId] = useState('');
+  const [metaToken, setMetaToken] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('meta_access_token') || '';
+    }
+    return '';
+  });
+  const [igUserId, setIgUserId] = useState('17841463802855850');
   const [ngrokToken, setNgrokToken] = useState('');
   const [ngrokDomain, setNgrokDomain] = useState('f1bd-creator.ngrok-free.app');
   const [localPort, setLocalPort] = useState('8088');
   const [copiedEnv, setCopiedEnv] = useState(false);
+
+  const handleUpdateToken = (newToken: string) => {
+    setMetaToken(newToken);
+    if (typeof window !== 'undefined') {
+      if (newToken.trim()) {
+        localStorage.setItem('meta_access_token', newToken.trim());
+      } else {
+        localStorage.removeItem('meta_access_token');
+      }
+    }
+  };
 
   const envContent = `# ==============================================================================
 # Formula 1 BD Instagram CMS & Publisher Configuration (.env)
@@ -142,11 +158,11 @@ fields=instagram_business_account
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
           <div>
-            <label className="block text-xs font-mono text-slate-400 mb-1">META_ACCESS_TOKEN</label>
+            <label className="block text-xs font-mono text-slate-400 mb-1">META_ACCESS_TOKEN (Saved in Browser)</label>
             <input
               type="text"
               value={metaToken}
-              onChange={(e) => setMetaToken(e.target.value)}
+              onChange={(e) => handleUpdateToken(e.target.value)}
               placeholder="EAA..."
               className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 text-xs font-mono focus:outline-none focus:border-amber-400"
             />

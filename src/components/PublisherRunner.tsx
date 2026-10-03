@@ -122,6 +122,8 @@ export const PublisherRunner: React.FC<PublisherRunnerProps> = ({
       // Step 2 & 3: Initiate /api/publish
       updateStep(2, 'active', 'Handshaking with Meta Content Ingestion service...');
 
+      const localToken = typeof window !== 'undefined' ? localStorage.getItem('meta_access_token') : null;
+
       const res = await fetch('/api/publish', {
         method: 'POST',
         headers: {
@@ -132,7 +134,8 @@ export const PublisherRunner: React.FC<PublisherRunnerProps> = ({
           title: activePost.title,
           caption: activePost.caption,
           imageDataUrl: activePost.imageDataUrl,
-          imagePublicUrl: activePost.image_public_url
+          imagePublicUrl: activePost.image_public_url,
+          userToken: localToken || undefined
         })
       });
 
