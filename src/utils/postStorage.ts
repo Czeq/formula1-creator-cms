@@ -5,26 +5,16 @@ const DB_NAME = 'f1bd_creator_cms_db';
 const DB_VERSION = 1;
 const STORE_NAME = 'posts_store';
 
-export const DEFAULT_POSTS: PostItem[] = [
-  {
-    id: 1,
-    title: 'BANGLADESH MOTORSPORT FUTURE: 2026 ROADMAP UNVEILED',
-    image_path: 'ready/f1bd_1774029300_1.jpg',
-    caption: 'The future of motorsport representation begins now. High-speed engineering, grassroots talent, and an unstoppable trajectory on the world stage.\n\n#formula1bd #f1 #f1bangladesh #motorsport #racing',
-    post_timestamp: Math.floor(Date.now() / 1000) + 1800, // Due in 30 mins
-    status: 'Scheduled',
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 2,
-    title: 'OSCAR PIASTRI STORMS TO SHANGHAI POLE UNDER THE LIGHTS',
-    image_path: 'published/f1bd_1773992400_2.jpg',
-    caption: 'A blistering final sector puts McLaren on pole position in Shanghai! Pure commitment through Turn 1.\n\n#f1 #formula1bd #mclaren #shanghaigp #poleposition',
-    post_timestamp: Math.floor(Date.now() / 1000) - 3600 * 24, // Yesterday
-    status: 'Posted',
-    created_at: new Date(Date.now() - 3600 * 24 * 1000).toISOString(),
-  }
-];
+// Clean default: No hardcoded fake posts
+export const DEFAULT_POSTS: PostItem[] = [];
+
+export function isLegacyMock(p: any): boolean {
+  if (!p) return true;
+  if (p.title === 'BANGLADESH MOTORSPORT FUTURE: 2026 ROADMAP UNVEILED') return true;
+  if (p.title === 'OSCAR PIASTRI STORMS TO SHANGHAI POLE UNDER THE LIGHTS') return true;
+  if (p.image_path === 'ready/f1bd_1774029300_1.jpg' || p.image_path === 'published/f1bd_1773992400_2.jpg') return true;
+  return false;
+}
 
 // Helper to open IndexedDB
 function openIndexedDB(): Promise<IDBDatabase | null> {
@@ -51,6 +41,7 @@ function openIndexedDB(): Promise<IDBDatabase | null> {
 
 // Save a single post to IndexedDB
 async function savePostToIndexedDB(post: PostItem): Promise<void> {
+  if (isLegacyMock(post)) return;
   try {
     const db = await openIndexedDB();
     if (!db) return;
@@ -94,19 +85,24 @@ async function deleteFromIndexedDB(id: number): Promise<void> {
 
 // Synchronously load posts from localStorage (fast boot)
 export function getInitialPosts(): PostItem[] {
-  if (typeof window === 'undefined') return DEFAULT_POSTS;
+  if (typeof window === 'undefined') return [];
   try {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+      if (Array.isArray(parsed)) {
+        // Strip out any legacy hardcoded mock items
+        const cleaned = parsed.filter((p) => !isLegacyMock(p));
+        if (cleaned.length !== parsed.length) {
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cleaned));
+        }
+        return cleaned;
       }
     }
   } catch (e) {
     console.warn('Failed to parse localStorage posts:', e);
   }
-  return DEFAULT_POSTS;
+  return [];
 }
 
 // Asynchronously load posts (combines localStorage + IndexedDB full-res images)
@@ -115,10 +111,17 @@ export async function loadPersistentPosts(): Promise<PostItem[]> {
   try {
     const idbList = await loadAllFromIndexedDB();
     if (idbList.length > 0) {
-      // Merge: IDB has full-resolution imageDataUrl
+      const cleanedIdb = idbList.filter((p) => !isLegacyMock(p));
+      // Clean legacy mocks out of IndexedDB
+      for (const p of idbList) {
+        if (isLegacyMock(p)) {
+          deleteFromIndexedDB(p.id);
+        }
+      }
+
       const map = new Map<number, PostItem>();
-      idbList.forEach(p => map.set(p.id, p));
-      localList.forEach(p => {
+      cleanedIdb.forEach((p) => map.set(p.id, p));
+      localList.forEach((p) => {
         if (!map.has(p.id)) {
           map.set(p.id, p);
         } else {
@@ -141,21 +144,24 @@ export async function loadPersistentPosts(): Promise<PostItem[]> {
 export async function savePostsPersistent(posts: PostItem[]): Promise<void> {
   if (typeof window === 'undefined') return;
 
-  // 1. Save all full items into IndexedDB
-  for (const post of posts) {
+  const filtered = posts.filter((p) => !isLegacyMock(p));
+
+  // 1. Save into IndexedDB
+  for (const post of filtered) {
     savePostToIndexedDB(post);
   }
 
-  // 2. Save into localStorage (safely handles storage quota)
+  // 2. Save into localStorage
   try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(posts));
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(filtered));
   } catch {
     try {
-      // If quota exceeded due to many large images, keep metadata and truncated previews in localStorage
-      const lightweight = posts.map(p => ({
+      const lightweight = filtered.map((p) => ({
         ...p,
-        // keep up to 100KB thumbnail in localStorage, full image is safe in IndexedDB
-        imageDataUrl: p.imageDataUrl && p.imageDataUrl.length > 100000 ? p.imageDataUrl.substring(0, 100000) : p.imageDataUrl
+        imageDataUrl:
+          p.imageDataUrl && p.imageDataUrl.length > 100000
+            ? p.imageDataUrl.substring(0, 100000)
+            : p.imageDataUrl,
       }));
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(lightweight));
     } catch (e) {
@@ -169,13 +175,29 @@ export async function deletePostPersistent(id: number): Promise<void> {
   await deleteFromIndexedDB(id);
 }
 
+// Clear all post history
+export async function clearAllPostsPersistent(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(LOCAL_STORAGE_KEY);
+  try {
+    const db = await openIndexedDB();
+    if (db) {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      tx.objectStore(STORE_NAME).clear();
+    }
+  } catch (e) {
+    console.warn('Clear IndexedDB failed:', e);
+  }
+}
+
 // Cloud Sync to Vercel Serverless Function / Supabase
 export async function syncPostToCloud(post: PostItem): Promise<{ success: boolean; publicUrl?: string; error?: string }> {
+  if (isLegacyMock(post)) return { success: false, error: 'Skipped mock item' };
   try {
     const res = await fetch('/api/posts', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         title: post.title,
@@ -183,8 +205,8 @@ export async function syncPostToCloud(post: PostItem): Promise<{ success: boolea
         imageDataUrl: post.imageDataUrl,
         scheduled_at: new Date(post.post_timestamp * 1000).toISOString(),
         status: post.status === 'Posted' ? 'posted' : 'scheduled',
-        target_platforms: ['instagram']
-      })
+        target_platforms: ['instagram'],
+      }),
     });
 
     if (!res.ok) {
@@ -195,7 +217,7 @@ export async function syncPostToCloud(post: PostItem): Promise<{ success: boolea
     const data = await res.json();
     return {
       success: true,
-      publicUrl: data.publicUrl || (data.post && data.post.image_public_url)
+      publicUrl: data.publicUrl || (data.post && data.post.image_public_url),
     };
   } catch (err: any) {
     return { success: false, error: err?.message || 'Network error' };
@@ -209,18 +231,22 @@ export async function fetchCloudPosts(): Promise<PostItem[]> {
     if (!res.ok) return [];
     const data = await res.json();
     if (data.posts && Array.isArray(data.posts)) {
-      return data.posts.map((row: any) => ({
-        id: typeof row.id === 'number' ? row.id : Math.floor(Math.random() * 100000) + 100,
-        title: row.title || 'UNTITLED POST',
-        image_path: row.image_storage_path || 'ready/f1bd_cloud.jpg',
-        image_public_url: row.image_public_url,
-        imageDataUrl: row.image_public_url || undefined,
-        caption: row.caption || '',
-        post_timestamp: row.scheduled_at ? Math.floor(new Date(row.scheduled_at).getTime() / 1000) : Math.floor(Date.now() / 1000),
-        status: row.status === 'posted' ? 'Posted' : 'Scheduled',
-        cloud_id: row.id,
-        created_at: row.created_at || new Date().toISOString()
-      }));
+      return data.posts
+        .filter((row: any) => !isLegacyMock(row))
+        .map((row: any) => ({
+          id: typeof row.id === 'number' ? row.id : Math.floor(Math.random() * 100000) + 100,
+          title: row.title || 'UNTITLED POST',
+          image_path: row.image_storage_path || 'ready/f1bd_cloud.jpg',
+          image_public_url: row.image_public_url,
+          imageDataUrl: row.image_public_url || undefined,
+          caption: row.caption || '',
+          post_timestamp: row.scheduled_at
+            ? Math.floor(new Date(row.scheduled_at).getTime() / 1000)
+            : Math.floor(Date.now() / 1000),
+          status: row.status === 'posted' ? 'Posted' : 'Scheduled',
+          cloud_id: row.id,
+          created_at: row.created_at || new Date().toISOString(),
+        }));
     }
   } catch (e) {
     console.warn('fetchCloudPosts failed:', e);

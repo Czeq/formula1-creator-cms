@@ -25,6 +25,7 @@ import {
   loadPersistentPosts,
   savePostsPersistent,
   deletePostPersistent,
+  clearAllPostsPersistent,
   fetchCloudPosts,
   syncPostToCloud
 } from './utils/postStorage';
@@ -129,6 +130,13 @@ export default function App() {
 
     if (target?.cloud_id) {
       fetch(`/api/posts?id=${target.cloud_id}`, { method: 'DELETE' }).catch(() => {});
+    }
+  };
+
+  const handleClearAllHistory = () => {
+    if (window.confirm('Clear all saved post history from this browser?')) {
+      setPosts([]);
+      clearAllPostsPersistent();
     }
   };
 
@@ -261,6 +269,8 @@ export default function App() {
               setActiveTab('publisher');
             }}
             onDeletePost={handleDeletePost}
+            onClearAll={handleClearAllHistory}
+            onNavigateToStudio={() => setActiveTab('studio')}
           />
         )}
 

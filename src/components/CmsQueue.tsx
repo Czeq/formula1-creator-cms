@@ -23,12 +23,16 @@ interface CmsQueueProps {
   posts: PostItem[];
   onTriggerPublish: (post: PostItem) => void;
   onDeletePost: (id: number) => void;
+  onClearAll?: () => void;
+  onNavigateToStudio?: () => void;
 }
 
 export const CmsQueue: React.FC<CmsQueueProps> = ({
   posts,
   onTriggerPublish,
   onDeletePost,
+  onClearAll,
+  onNavigateToStudio,
 }) => {
   const [filter, setFilter] = useState<'all' | 'scheduled' | 'posted'>('all');
   const [inspectedPost, setInspectedPost] = useState<PostItem | null>(null);
@@ -238,6 +242,17 @@ export const CmsQueue: React.FC<CmsQueueProps> = ({
         </div>
 
         <div className="flex items-center gap-2 text-xs">
+          {posts.length > 0 && onClearAll && (
+            <button
+              type="button"
+              onClick={onClearAll}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 hover:text-rose-100 transition border border-rose-800/60"
+              title="Clear all saved posts from history"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+              <span>Clear History</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={handleExportJson}
@@ -269,11 +284,26 @@ export const CmsQueue: React.FC<CmsQueueProps> = ({
         </div>
 
         {filteredPosts.length === 0 ? (
-          <div className="py-16 text-center text-slate-500 text-sm space-y-2">
-            <p>No posts found in this view.</p>
-            <p className="text-xs text-slate-600">
-              Create a new graphic in the Graphic Studio and click "Save to Queue & History" to record one.
-            </p>
+          <div className="py-16 text-center space-y-4">
+            <div className="w-16 h-16 rounded-2xl bg-slate-800/80 border border-slate-700/80 mx-auto flex items-center justify-center text-slate-400 shadow-inner">
+              <Sparkles className="w-8 h-8 text-red-400" />
+            </div>
+            <div>
+              <h4 className="text-base font-bold text-white">No Post History Yet</h4>
+              <p className="text-xs text-slate-400 max-w-md mx-auto mt-1 leading-relaxed">
+                You haven't created any graphics yet. Go to the Graphic Studio, compose your image with headlines and hashtags, and click <strong className="text-red-400">"Save to Queue & History"</strong> to save your real posts here.
+              </p>
+            </div>
+            {onNavigateToStudio && (
+              <button
+                type="button"
+                onClick={onNavigateToStudio}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold text-xs shadow-lg transition duration-200 cursor-pointer"
+              >
+                <Layers className="w-4 h-4" />
+                <span>Open Graphic Studio</span>
+              </button>
+            )}
           </div>
         ) : (
           <div className="mt-4 divide-y divide-slate-800/80">
