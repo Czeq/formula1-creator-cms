@@ -5,12 +5,12 @@ export const SetupGuide: React.FC = () => {
   const [metaToken, setMetaToken] = useState('');
   const [igUserId, setIgUserId] = useState('');
   const [ngrokToken, setNgrokToken] = useState('');
-  const [ngrokDomain, setNgrokDomain] = useState('balshi-creator.ngrok-free.app');
+  const [ngrokDomain, setNgrokDomain] = useState('f1bd-creator.ngrok-free.app');
   const [localPort, setLocalPort] = useState('8088');
   const [copiedEnv, setCopiedEnv] = useState(false);
 
   const envContent = `# ==============================================================================
-# Balshi Instagram CMS & Publisher Configuration (.env)
+# Formula 1 BD Instagram CMS & Publisher Configuration (.env)
 # ==============================================================================
 
 # 1. Meta Graph API Long-Lived User Access Token
@@ -180,7 +180,7 @@ fields=instagram_business_account
               type="text"
               value={ngrokDomain}
               onChange={(e) => setNgrokDomain(e.target.value)}
-              placeholder="balshi-creator.ngrok-free.app"
+              placeholder="f1bd-creator.ngrok-free.app"
               className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 text-xs font-mono focus:outline-none focus:border-amber-400"
             />
           </div>

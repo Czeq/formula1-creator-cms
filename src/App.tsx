@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import templateOverlayUrl from './balshitemplate.png';
+import React, { useState } from 'react';
 import {
   Layers,
   Database,
@@ -12,7 +11,7 @@ import {
   Clock,
   ShieldCheck,
   Download,
-  AlertCircle
+  Flag
 } from 'lucide-react';
 import { GraphicStudio } from './components/GraphicStudio';
 import { CmsQueue } from './components/CmsQueue';
@@ -23,40 +22,23 @@ import { PostItem } from './types';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'studio' | 'queue' | 'publisher' | 'code' | 'setup'>('studio');
-  const [templateLoaded, setTemplateLoaded] = useState(false);
-  const [templateError, setTemplateError] = useState<string | null>(null);
 
-  // Preload master template overlay (balshitemplate.png)
-  useEffect(() => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      setTemplateLoaded(true);
-      setTemplateError(null);
-    };
-    img.onerror = () => {
-      setTemplateLoaded(false);
-      setTemplateError("Error: Failed to load balshitemplate.png");
-    };
-    img.src = templateOverlayUrl || '/balshitemplate.png';
-  }, []);
-
-  // Initial Sample Posts in SQLite WAL state
+  // Initial Sample Posts for Formula 1 BD
   const [posts, setPosts] = useState<PostItem[]>([
     {
       id: 1,
-      title: 'Audience Architecture & Longevity',
-      image_path: 'ready/balshi_1774029300_1.jpg',
-      caption: 'The best creators do not compete on volume. They build unforgettable perspectives and articulate what others merely feel.\n\n#balshi #craftsmanship #creatorgrowth',
+      title: 'BANGLADESH MOTORSPORT FUTURE: 2026 ROADMAP UNVEILED',
+      image_path: 'ready/f1bd_1774029300_1.jpg',
+      caption: 'The future of motorsport representation begins now. High-speed engineering, grassroots talent, and an unstoppable trajectory on the world stage.\n\n#formula1bd #f1 #f1bangladesh #motorsport #racing',
       post_timestamp: Math.floor(Date.now() / 1000) + 1800, // Due in 30 mins
       status: 'Scheduled',
       created_at: new Date().toISOString(),
     },
     {
       id: 2,
-      title: 'Masterclass: Zero-Cost Automation Frameworks',
-      image_path: 'published/balshi_1773992400_2.jpg',
-      caption: 'Why pay monthly SaaS subscriptions when Python, SQLite WAL, and Graph API can give you complete sovereign distribution?\n\n#balshi #automation #indiecreator',
+      title: 'OSCAR PIASTRI STORMS TO SHANGHAI POLE UNDER THE LIGHTS',
+      image_path: 'published/f1bd_1773992400_2.jpg',
+      caption: 'A blistering final sector puts McLaren on pole position in Shanghai! Pure commitment through Turn 1.\n\n#f1 #formula1bd #mclaren #shanghaigp #poleposition',
       post_timestamp: Math.floor(Date.now() / 1000) - 3600 * 24, // Yesterday
       status: 'Posted',
       created_at: new Date(Date.now() - 3600 * 24 * 1000).toISOString(),
@@ -90,37 +72,37 @@ export default function App() {
   const scheduledCount = posts.filter((p) => p.status === 'Scheduled').length;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-400 selection:text-slate-950">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-red-500 selection:text-white">
       {/* Top Application Header */}
       <header className="border-b border-slate-800 bg-slate-900/90 backdrop-blur-md sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 font-black shadow-md shadow-amber-500/20">
-              B
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-600 to-rose-700 flex items-center justify-center text-white font-black shadow-md shadow-red-600/30 tracking-tighter text-sm">
+              F1
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-base font-bold tracking-tight text-white">BALSHI</h1>
-                <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-amber-300 border border-slate-700">
-                  Creator CMS
+                <h1 className="text-base font-bold tracking-tight text-white">FORMULA 1 BD</h1>
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-red-950/80 text-red-300 border border-red-800/80">
+                  Creator Studio
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400">100% Local • SQLite WAL • Instagram Graph API v21.0</p>
+              <p className="text-[11px] text-slate-400">@formula1.bd • Supabase • Meta Graph API v21.0</p>
             </div>
           </div>
 
           <div className="hidden md:flex items-center gap-3 text-xs">
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/80 rounded-lg border border-slate-700 text-slate-300">
               <span className="w-2 h-2 rounded-full bg-emerald-400" />
-              <span>Canvas: 1170 × 1463 px</span>
+              <span>Canvas: 1080×1080 (1:1) / 1080×1350 (4:5)</span>
             </div>
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/80 rounded-lg border border-slate-700 text-slate-300">
               <Database className="w-3.5 h-3.5 text-sky-400" />
-              <span>SQLite WAL</span>
+              <span>Supabase / SQLite</span>
             </div>
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/80 rounded-lg border border-slate-700 text-slate-300">
               <Instagram className="w-3.5 h-3.5 text-pink-400" />
-              <span>@balshi</span>
+              <span>@formula1.bd</span>
             </div>
           </div>
         </div>
@@ -131,26 +113,26 @@ export default function App() {
             onClick={() => setActiveTab('studio')}
             className={`px-4 py-2.5 text-xs font-semibold rounded-lg transition flex items-center gap-2 whitespace-nowrap ${
               activeTab === 'studio'
-                ? 'bg-slate-800 text-amber-300 border border-slate-700 shadow-sm'
+                ? 'bg-red-950/60 text-red-300 border border-red-800 shadow-sm'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-850'
             }`}
           >
-            <Layers className="w-4 h-4 text-amber-400" />
-            <span>WYSIWYG Studio (1170x1463)</span>
+            <Layers className="w-4 h-4 text-red-400" />
+            <span>F1 BD Graphic Studio (1:1 & 4:5)</span>
           </button>
 
           <button
             onClick={() => setActiveTab('queue')}
             className={`px-4 py-2.5 text-xs font-semibold rounded-lg transition flex items-center gap-2 whitespace-nowrap ${
               activeTab === 'queue'
-                ? 'bg-slate-800 text-amber-300 border border-slate-700 shadow-sm'
+                ? 'bg-red-950/60 text-red-300 border border-red-800 shadow-sm'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-850'
             }`}
           >
             <Database className="w-4 h-4 text-sky-400" />
-            <span>SQLite Queue & Archive</span>
+            <span>Queue & Supabase Archive</span>
             {scheduledCount > 0 && (
-              <span className="px-1.5 py-0.2 bg-amber-500/20 text-amber-300 rounded text-[10px] font-mono">
+              <span className="px-1.5 py-0.2 bg-red-500/20 text-red-300 rounded text-[10px] font-mono">
                 {scheduledCount}
               </span>
             )}
@@ -160,7 +142,7 @@ export default function App() {
             onClick={() => setActiveTab('publisher')}
             className={`px-4 py-2.5 text-xs font-semibold rounded-lg transition flex items-center gap-2 whitespace-nowrap ${
               activeTab === 'publisher'
-                ? 'bg-slate-800 text-amber-300 border border-slate-700 shadow-sm'
+                ? 'bg-red-950/60 text-red-300 border border-red-800 shadow-sm'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-850'
             }`}
           >
@@ -172,42 +154,33 @@ export default function App() {
             onClick={() => setActiveTab('code')}
             className={`px-4 py-2.5 text-xs font-semibold rounded-lg transition flex items-center gap-2 whitespace-nowrap ${
               activeTab === 'code'
-                ? 'bg-slate-800 text-amber-300 border border-slate-700 shadow-sm'
+                ? 'bg-red-950/60 text-red-300 border border-red-800 shadow-sm'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-850'
             }`}
           >
             <FileCode2 className="w-4 h-4 text-purple-400" />
-            <span>Python Codebase (4 Files)</span>
+            <span>Codebase Explorer</span>
           </button>
 
           <button
             onClick={() => setActiveTab('setup')}
             className={`px-4 py-2.5 text-xs font-semibold rounded-lg transition flex items-center gap-2 whitespace-nowrap ${
               activeTab === 'setup'
-                ? 'bg-slate-800 text-amber-300 border border-slate-700 shadow-sm'
+                ? 'bg-red-950/60 text-red-300 border border-red-800 shadow-sm'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-850'
             }`}
           >
             <Key className="w-4 h-4 text-amber-400" />
-            <span>Credentials & .env Setup</span>
+            <span>Supabase & Meta API Setup</span>
           </button>
         </div>
       </header>
 
       {/* Main Content View */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {templateError && (
-          <div id="template-error-banner" className="mb-6 p-4 rounded-xl bg-red-950/90 border-2 border-red-500 text-red-200 flex items-center gap-3 text-sm font-bold shadow-lg">
-            <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
-            <span>{templateError}</span>
-          </div>
-        )}
-
         {activeTab === 'studio' && (
           <GraphicStudio
             onSchedulePost={handleSchedulePost}
-            templateOverlayUrl={templateOverlayUrl}
-            templateError={templateError}
           />
         )}
 
@@ -237,9 +210,9 @@ export default function App() {
       <footer className="border-t border-slate-800/80 bg-slate-950 py-6 text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-slate-300">Balshi Instagram CMS</span>
+            <span className="font-semibold text-slate-300">Formula 1 BD Creator CMS</span>
             <span>—</span>
-            <span>Zero-cost, local-first publishing pipeline</span>
+            <span>High-definition graphics & automated Instagram publisher for @formula1.bd</span>
           </div>
           <div className="flex items-center gap-4 text-slate-400">
             <span>app.py</span>

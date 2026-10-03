@@ -1,20 +1,22 @@
 """
-Balshi Instagram CMS - Streamlit Desktop Editor Interface (app.py)
+Formula 1 BD Instagram CMS - Streamlit Desktop Editor Interface (app.py)
 A modern, creator-friendly desktop-grade editor for composing and scheduling
-1170x1463 Instagram Creator posts.
+1080x1080 (1:1) and 1080x1350 (4:5) Instagram posts for @formula1.bd.
 
 Features:
 - Two-Column Split Layout (st.columns([1, 1]))
   * Left Column: Studio Workspace with structured, icon-labeled expanders:
-    1. 🖼️ Image Transformations (Zoom 1.0x-3.0x, Pan X, Pan Y, Rotation -45° to +45°)
-    2. ✍️ Headline & Typography (Headline, Font Size 45, Text X, Text Y, Max W, Max H)
-    3. 📝 Post Details & Scheduling (Title, Caption, Date, Time, Schedule Button)
-  * Right Column: Real-time Live Mockup Preview (1170x1463)
-- Strict 3-Layer Composite Pipeline:
+    1. 🏎️ Formula 1 BD Logo & Template Options (Transparent Logo Variants, 1:1 and 4:5 Ratios)
+    2. 🖼️ Image Transformations (Zoom 1.0x-3.0x, Pan X, Pan Y, Rotation -45° to +45°)
+    3. ✍️ Headline & Typography (Headline, Font Size, Text X, Text Y, Max W, Max H)
+    4. 📝 Post Details & Scheduling (Title, Caption, Date, Time, Schedule Button)
+  * Right Column: Real-time Live Mockup Preview
+- High-Definition Composite Pipeline:
   Layer 1 (Bottom): User Photo with cover-scale, zoom, pan, and rotation
-  Layer 2 (Middle): Master template 'balshitemplate.png' pasted with alpha mask
-  Layer 3 (Top): Left-aligned dynamic text with Roboto-Black, Photoshop -50 tracking, and auto-fit fallback
-- SQLite WAL Database persistence (balshi_posts.db)
+  Layer 1b: Dynamic Contrast Scrim for logo and headline readability
+  Layer 2 (Middle): Formula 1 BD Watermark Logo (Tight-cropped transparent or solid white)
+  Layer 3 (Top): Left-aligned dynamic text with Roboto-Black, Photoshop -50 tracking
+- SQLite WAL Database persistence (formula1_posts.db)
 """
 
 import os
@@ -73,8 +75,8 @@ if "terminal_banner_shown" not in st.session_state:
         "STREAMLIT CREATOR STUDIO",
         extra_info=[
             "Studio Interface: http://localhost:8501",
-            "3-Layer Compositor: Active (1170×1463)",
-            "Database: balshi_posts.db (WAL Journal Mode)"
+            "F1 BD Compositor: Active (1080×1080 / 1080×1350)",
+            "Database: formula1_posts.db (WAL Journal Mode)"
         ],
         clear=True
     )
@@ -82,8 +84,8 @@ if "terminal_banner_shown" not in st.session_state:
 
 # Set Streamlit Page Configuration
 st.set_page_config(
-    page_title="Balshi Instagram Creator Studio",
-    page_icon="📸",
+    page_title="Formula 1 BD Creator Studio",
+    page_icon="🏎️",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -232,17 +234,17 @@ st.markdown(
         <div>
             <div style="display:flex; align-items:center; gap:10px;">
                 <h1 style="margin:0; font-size:22px; font-weight:800; color:#ffffff; letter-spacing:-0.02em;">
-                    Balshi Instagram Creator Studio
+                    Formula 1 BD Creator Studio
                 </h1>
-                <span class="studio-pill">● 3-LAYER COMPOSITOR ACTIVE</span>
+                <span class="studio-pill">● FORMULA 1 BD COMPOSITOR ACTIVE</span>
             </div>
             <p style="margin:4px 0 0 0; font-size:12.5px; color:#94a3b8;">
-                Photo Transforms (Zoom/Pan/Rotate) • balshitemplate.png Overlay • Left-Aligned Roboto Black with -50 Tracking
+                Photo Transforms (Zoom/Pan/Rotate) • Transparent Logo Overlays • Track Contrast Scrim • Roboto Black Headline
             </p>
         </div>
         <div style="display:flex; gap:8px;">
             <div style="background:#0f172a; border:1px solid #1e293b; border-radius:8px; padding:6px 12px; font-family:'JetBrains Mono', monospace; font-size:11px; color:#cbd5e1;">
-                1170 × 1463 (4:5)
+                1080 × 1080 (1:1) / 1080 × 1350 (4:5)
             </div>
         </div>
     </div>
@@ -264,66 +266,49 @@ with tab_studio:
     with col_workspace:
         st.markdown("### 🛠️ Studio Workspace")
 
-        # Brand Selector
-        brand_choice = st.radio(
-            "Brand / Studio Mode",
-            ["🏎️ Formula 1 BD (formula1.bd relaunch)", "📰 Balshi Breaking"],
-            horizontal=True
-        )
-        is_f1 = "Formula 1" in brand_choice
-        brand_mode = "formula1" if is_f1 else "balshi"
+        is_f1 = True
+        brand_mode = "formula1"
 
         # Formula 1 BD Logo & Template Controls
-        if is_f1:
-            with st.expander("🏎️ Formula 1 BD Logo & Template Options", expanded=True):
-                col_f1_v, col_f1_r = st.columns(2)
-                with col_f1_v:
-                    f1_variant_choice = st.selectbox(
-                        "Transparent Logo Version",
-                        [
-                            "⚪ White Text + Red Flag (Transparent - For Dark / Track Photos)",
-                            "⚫ Black Text + Red Flag (Transparent - For Bright Photos)",
-                            "⬜ Solid White Box Emblem"
-                        ]
-                    )
-                    if "White Text" in f1_variant_choice:
-                        f1_logo_variant = "white_transparent"
-                    elif "Black Text" in f1_variant_choice:
-                        f1_logo_variant = "black_transparent"
-                    else:
-                        f1_logo_variant = "white_solid"
+        with st.expander("🏎️ Formula 1 BD Logo & Template Options", expanded=True):
+            col_f1_v, col_f1_r = st.columns(2)
+            with col_f1_v:
+                f1_variant_choice = st.selectbox(
+                    "Transparent Logo Version",
+                    [
+                        "⚪ White Text + Red Flag (Transparent - For Dark / Track Photos)",
+                        "⚫ Black Text + Red Flag (Transparent - For Bright Photos)",
+                        "⬜ Solid White Box Emblem"
+                    ]
+                )
+                if "White Text" in f1_variant_choice:
+                    f1_logo_variant = "white_transparent"
+                elif "Black Text" in f1_variant_choice:
+                    f1_logo_variant = "black_transparent"
+                else:
+                    f1_logo_variant = "white_solid"
 
-                with col_f1_r:
-                    f1_ratio_choice = st.selectbox(
-                        "Canvas Aspect Ratio",
-                        [
-                            "1:1 Square (1080×1080 - Default)",
-                            "4:5 Portrait (1080×1350)",
-                            "4:5 Vertical (1170×1463)"
-                        ]
-                    )
-                    if "1:1" in f1_ratio_choice:
-                        canvas_w, canvas_h = 1080, 1080
-                    elif "1350" in f1_ratio_choice:
-                        canvas_w, canvas_h = 1080, 1350
-                    else:
-                        canvas_w, canvas_h = 1170, 1463
+            with col_f1_r:
+                f1_ratio_choice = st.selectbox(
+                    "Canvas Aspect Ratio",
+                    [
+                        "1:1 Square (1080×1080 - Default)",
+                        "4:5 Portrait (1080×1350)"
+                    ]
+                )
+                if "1:1" in f1_ratio_choice:
+                    canvas_w, canvas_h = 1080, 1080
+                else:
+                    canvas_w, canvas_h = 1080, 1350
 
-                col_f1_p, col_f1_w = st.columns(2)
-                with col_f1_p:
-                    f1_logo_pos = st.selectbox("Logo Placement", ["center", "left", "right"], index=0)
-                with col_f1_w:
-                    f1_logo_width = st.slider("Logo Width", 200, 550, 330, step=10)
+            col_f1_p, col_f1_w = st.columns(2)
+            with col_f1_p:
+                f1_logo_pos = st.selectbox("Logo Placement", ["center", "left", "right"], index=0)
+            with col_f1_w:
+                f1_logo_width = st.slider("Logo Width", 200, 550, 330, step=10)
 
-                f1_logo_y = st.slider("Logo Top Offset", 20, 180, 65, step=5)
-                enable_scrim = st.checkbox("Enable Dynamic Contrast Scrim (Guarantees headline & logo legibility)", value=True)
-        else:
-            f1_logo_variant = "white_transparent"
-            canvas_w, canvas_h = 1170, 1463
-            f1_logo_pos = "center"
-            f1_logo_width = 340
-            f1_logo_y = 65
-            enable_scrim = False
+            f1_logo_y = st.slider("Logo Top Offset", 20, 180, 65, step=5)
+            enable_scrim = st.checkbox("Enable Dynamic Contrast Scrim (Guarantees headline & logo legibility)", value=True)
 
         st.caption("Adjust photo framing, typography bounding box, and publication details:")
 
@@ -476,8 +461,6 @@ with tab_studio:
         # ----------------------------------------------------------------------
         default_caption = (
             "Historic moment for Bangladesh motorsports as Formula 1 driver debuts on the international circuit.\n\n#formula1bd #f1 #motorsport #bangladesh #racing"
-            if is_f1
-            else "Breaking updates from today's major market announcement.\n\n#balshi #breaking #technology #markets"
         )
         with st.expander("📝 Post Details & Scheduling", expanded=True):
             caption_input = st.text_area(
@@ -547,7 +530,7 @@ with tab_studio:
                 schedule_button_clicked = st.button("📥 Save to Queue", type="primary", use_container_width=True)
             with col_b2:
                 if image_bytes is not None:
-                    download_filename = f"{brand_mode}_{int(time.time())}.jpg"
+                    download_filename = f"formula1bd_{int(time.time())}.jpg"
                     st.download_button(
                         label="📥 Download High-Res Graphic",
                         data=image_bytes,
@@ -563,7 +546,7 @@ with tab_studio:
     # --------------------------------------------------------------------------
     with col_preview:
         st.markdown(f"### 👁️ Live Mockup Preview ({canvas_w}×{canvas_h})")
-        st.caption(f"Brand: {brand_mode.upper()} • Format: {canvas_w}×{canvas_h} • Logo: {f1_logo_variant if is_f1 else 'balshitemplate.png'}")
+        st.caption(f"Brand: FORMULA 1 BD (@formula1.bd) • Format: {canvas_w}×{canvas_h} • Logo: {f1_logo_variant}")
 
         if render_err is not None:
             st.error(f"Render Error: {render_err}")
@@ -576,8 +559,8 @@ with tab_studio:
                 <div style="display:flex; justify-content:space-between; align-items:center; background:#0b1120; border:1px solid #1e293b; border-radius:8px; padding:10px 14px; margin-top:8px; font-size:11.5px; font-family:'JetBrains Mono', monospace; color:#94a3b8;">
                     <span>DIM: {canvas_w}×{canvas_h}</span>
                     <span>ZOOM: {zoom_val:.2f}x | PAN: ({pan_x_val:+d}, {pan_y_val:+d})</span>
-                    <span>BRAND: {brand_mode.upper()}</span>
-                    <span>LOGO: {f1_logo_variant if is_f1 else 'DEFAULT'}</span>
+                    <span>BRAND: FORMULA 1 BD</span>
+                    <span>LOGO: {f1_logo_variant}</span>
                 </div>
                 """,
                 unsafe_allow_html=True
@@ -593,7 +576,7 @@ with tab_studio:
                 # Use UTC epoch for post_timestamp to stay timezone-consistent with publisher.py
                 target_epoch = int(datetime.combine(sched_date, sched_time).timestamp())
                 timestamp_now = int(time.time())
-                out_filename = f"balshi_{target_epoch}_{timestamp_now}.jpg"
+                out_filename = f"f1bd_{target_epoch}_{timestamp_now}.jpg"
                 out_path = os.path.join("ready", out_filename).replace("\\", "/")
 
                 try:

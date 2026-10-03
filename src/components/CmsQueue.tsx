@@ -56,7 +56,7 @@ export const CmsQueue: React.FC<CmsQueueProps> = ({
           <span className="text-2xl font-bold text-slate-100 mt-1 block">
             {posts.length}
           </span>
-          <span className="text-[11px] text-slate-500 mt-1 block">balshi_posts.db</span>
+          <span className="text-[11px] text-slate-500 mt-1 block">formula1_posts.db</span>
         </div>
 
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">

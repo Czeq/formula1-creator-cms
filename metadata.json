@@ -1,6 +1,6 @@
 {
-  "name": "Balshi Instagram CMS",
-  "description": "Local Python CMS and automated Instagram publisher with real-time graphic generation, SQLite WAL database, and Meta Graph API integration.",
+  "name": "Formula 1 BD Instagram CMS",
+  "description": "Formula 1 BD creator studio and automated Instagram publisher with high-definition graphic generation, transparent logo overlays, Supabase backend, and Meta Graph API integration.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

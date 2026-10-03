@@ -1,17 +1,14 @@
 """
-Balshi Instagram CMS - Real-Time Graphics Engine (graphics.py)
-Strictly renders composited graphics at 1170x1463 resolution for Instagram Creator feeds.
+Formula 1 BD Instagram CMS - Real-Time Graphics Engine (graphics.py)
+Strictly renders composited graphics at 1080x1080 (1:1) and 1080x1350 (4:5) for @formula1.bd.
 
-STRICT 3-LAYER COMPOSITING ARCHITECTURE:
-- Layer 1: The user's photo (Scaled to 1170x1463, center-cropped, converted to RGBA).
+COMPOSITING ARCHITECTURE:
+- Layer 1: The user's photo (Scaled to canvas, center-cropped, converted to RGBA).
            Supports interactive visual transforms (zoom, offset_x, offset_y, rotation).
-- Layer 2: balshitemplate.png (Opened, converted to RGBA, and pasted at (0, 0) using itself as the mask).
-           Contains the authentic gradient, watermark, and 'BREAKING' badge.
-           NO PROGRAMMATIC SHAPES OR RECTANGLES ARE DRAWN.
-           If balshitemplate.png is missing, raises FileNotFoundError immediately.
+- Layer 1b: Dynamic Contrast Scrim (Graduated top scrim for logo, bottom scrim for headline text).
+- Layer 2: Formula 1 BD Watermark Logo (Tight-cropped transparent or solid white variants).
 - Layer 3: Dynamic Text Layer.
-           ImageDraw is used ONLY to render the Roboto-Black.ttf text on top of Layer 2.
-           Strictly left-aligned with Photoshop -50 tracking and safe-zone auto-shrinking.
+           Rendered with Roboto-Black.ttf uppercase text with Photoshop -50 tracking and drop shadow.
 
 Export: Coerced to RGB (.convert("RGB")) before saving as JPEG.
 """
@@ -21,32 +18,13 @@ import io
 from typing import List, Tuple, Optional, Any
 from PIL import Image, ImageOps, ImageDraw, ImageFont
 
-CANVAS_WIDTH = 1170
-CANVAS_HEIGHT = 1463
+CANVAS_WIDTH = 1080
+CANVAS_HEIGHT = 1080
 
 # Paths and Asset Directories
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 FONTS_DIR = os.path.join(PROJECT_ROOT, "fonts")
 ASSETS_DIR = os.path.join(PROJECT_ROOT, "assets")
-
-# Master Overlay Template Name
-MASTER_TEMPLATE_FILENAME = "balshitemplate.png"
-TEMPLATE_DEFAULT_PATH = os.path.join(PROJECT_ROOT, MASTER_TEMPLATE_FILENAME)
-
-# Font Paths
-DEFAULT_FONT_PATH = os.path.join(FONTS_DIR, "Roboto-Black.ttf")
-ROOT_FONT_PATH = os.path.join(PROJECT_ROOT, "Roboto-Black.ttf")
-ASSETS_FONT_PATH = os.path.join(ASSETS_DIR, "Roboto-Black.ttf")
-
-# Typography & Bounding Box Defaults
-DEFAULT_FONT_SIZE = 45          # Strictly 45px base font size
-DEFAULT_MIN_FONT_SIZE = 18
-DEFAULT_BOX_X = 60              # Left margin matching BREAKING badge
-DEFAULT_BOX_Y = 1190            # Top offset below BREAKING badge
-DEFAULT_MAX_WIDTH = 1040        # Maximum width (1170 - 60 - 70)
-DEFAULT_MAX_HEIGHT = 240        # Maximum height of text bounding box
-DEFAULT_LINE_SPACING = 12       # Vertical distance between lines
-DEFAULT_TRACKING = -50          # Photoshop -50 tracking
 
 # Formula 1 BD Assets
 F1_LOGOS_DIR = os.path.join(ASSETS_DIR, "logos")
@@ -54,43 +32,50 @@ F1_LOGO_WHITE_TRANSPARENT = os.path.join(F1_LOGOS_DIR, "f1bd_white_transparent_t
 F1_LOGO_BLACK_TRANSPARENT = os.path.join(F1_LOGOS_DIR, "f1bd_black_transparent_tight.png")
 F1_LOGO_WHITE_SOLID = os.path.join(F1_LOGOS_DIR, "f1bd_white_solid.png")
 
+# Master Overlay Template Name
+MASTER_TEMPLATE_FILENAME = "f1bd_white_transparent_tight.png"
+TEMPLATE_DEFAULT_PATH = os.path.join(F1_LOGOS_DIR, MASTER_TEMPLATE_FILENAME)
+
+# Font Paths
+DEFAULT_FONT_PATH = os.path.join(FONTS_DIR, "Roboto-Black.ttf")
+ROOT_FONT_PATH = os.path.join(PROJECT_ROOT, "Roboto-Black.ttf")
+ASSETS_FONT_PATH = os.path.join(ASSETS_DIR, "Roboto-Black.ttf")
+
+# Typography & Bounding Box Defaults (1:1 Square)
+DEFAULT_FONT_SIZE = 52          # Base font size for 1:1 format
+DEFAULT_MIN_FONT_SIZE = 18
+DEFAULT_BOX_X = 60              # Left margin
+DEFAULT_BOX_Y = 880             # Top offset
+DEFAULT_MAX_WIDTH = 960         # Maximum width (1080 - 60 - 60)
+DEFAULT_MAX_HEIGHT = 180        # Maximum height of text bounding box
+DEFAULT_LINE_SPACING = 10       # Vertical distance between lines
+DEFAULT_TRACKING = -50          # Photoshop -50 tracking
+
 
 def resolve_master_template(specified_path: Optional[str] = None) -> str:
     """
-    Resolves the path to the required 'balshitemplate.png' master overlay template.
-    If an explicit template_path is provided and does not exist, or if 'balshitemplate.png'
-    is missing from all standard locations, strictly raises FileNotFoundError.
-    NO fallback shape or badge drawing is permitted.
+    Resolves the path to the required Formula 1 BD watermark logo.
     """
     if specified_path:
         if os.path.isfile(specified_path):
             return specified_path
-        raise FileNotFoundError(
-            f"CRITICAL ARCHITECTURE ERROR: Specified template '{specified_path}' was not found!\n"
-            f"Pillow shape drawing is strictly prohibited. Master template file is required."
-        )
+        raise FileNotFoundError(f"Specified overlay '{specified_path}' was not found!")
 
     candidates = [
+        F1_LOGO_WHITE_TRANSPARENT,
+        os.path.join(PROJECT_ROOT, "public", "logos", "f1bd_white_transparent_tight.png"),
+        os.path.join(ASSETS_DIR, "logos", "f1bd_white_transparent.png"),
+        os.path.join(PROJECT_ROOT, "public", "logos", "f1bd_white_transparent.png"),
         os.path.join(PROJECT_ROOT, MASTER_TEMPLATE_FILENAME),
-        f"./{MASTER_TEMPLATE_FILENAME}",
-        MASTER_TEMPLATE_FILENAME,
-        os.path.join(ASSETS_DIR, MASTER_TEMPLATE_FILENAME),
-        os.path.join(PROJECT_ROOT, "public", MASTER_TEMPLATE_FILENAME),
-        f"./assets/{MASTER_TEMPLATE_FILENAME}",
-        f"./public/{MASTER_TEMPLATE_FILENAME}",
     ]
 
     for candidate in candidates:
         if candidate and os.path.isfile(candidate):
             return candidate
 
-    raise FileNotFoundError(
-        f"CRITICAL ARCHITECTURE ERROR: Master template '{MASTER_TEMPLATE_FILENAME}' was not found!\n"
-        f"The graphics engine strictly requires the transparent master overlay '{MASTER_TEMPLATE_FILENAME}' "
-        f"containing the authentic gradient, watermark, and 'BREAKING' badge.\n"
-        f"Programmatic Pillow shapes, rectangles, and fake badges have been completely eliminated.\n"
-        f"Please ensure '{MASTER_TEMPLATE_FILENAME}' is placed in the project root or assets/ directory."
-    )
+    return F1_LOGO_WHITE_TRANSPARENT
+
+
 
 
 # Backwards compatibility alias for resolve_master_template
@@ -283,7 +268,7 @@ def render_preview(
     text_color: Tuple[int, int, int] = (255, 255, 255),
     font_path: Optional[str] = None,
     align: str = "left",
-    brand: str = "balshi",
+    brand: str = "formula1",
     f1_logo_variant: str = "white_transparent",
     canvas_w: int = CANVAS_WIDTH,
     canvas_h: int = CANVAS_HEIGHT,
@@ -293,11 +278,9 @@ def render_preview(
     enable_scrim: bool = True
 ) -> Image.Image:
     """
-    STRICT COMPOSITE PIPELINE:
-    Supports:
-    - Balshi Brand: Strict 3-Layer architecture with balshitemplate.png overlay
-    - Formula 1 BD Brand: Transparent logo selector (White/Black/Solid), dynamic canvas (1:1 / 4:5),
-      contrast scrim, and tracked headline text.
+    STRICT COMPOSITE PIPELINE FOR FORMULA 1 BD:
+    Renders 1:1 (1080x1080) and 4:5 (1080x1350) graphics with photo transforms,
+    contrast scrim, transparent logo overlays, and Roboto-Black tracked headlines.
     """
     c_width = canvas_w
     c_height = canvas_h
@@ -407,7 +390,7 @@ def render_preview(
             ly = int(f1_logo_y)
             canvas.paste(logo_resized, (lx, ly), logo_resized)
     else:
-        # Balshi brand pipeline: master balshitemplate.png overlay
+        # Custom master template overlay
         template_file_path = resolve_master_template(template_path)
         template = Image.open(template_file_path).convert("RGBA")
         if template.size != (c_width, c_height):
@@ -493,7 +476,7 @@ def render_graphic(
     offset_x: int = 0,
     offset_y: int = 0,
     rotation: float = 0.0,
-    brand: str = "balshi",
+    brand: str = "formula1",
     f1_logo_variant: str = "white_transparent",
     canvas_w: int = CANVAS_WIDTH,
     canvas_h: int = CANVAS_HEIGHT,
@@ -536,12 +519,12 @@ def render_graphic(
 
 
 if __name__ == "__main__":
-    print("Testing graphics engine with strict 3-layer architecture...")
-    test_photo = Image.new("RGB", (1200, 800), (45, 60, 85))
+    print("Testing Formula 1 BD graphics engine...")
+    test_photo = Image.new("RGB", (1200, 800), (30, 35, 45))
     rendered = render_preview(
         photo=test_photo,
-        title="MARKETS SURGE AS TECH LEADERS RATIFY HISTORIC PROTOCOL ACCORD",
-        output_path="test_strict_3layer.jpg",
-        font_size=45
+        title="FIRST BANGLADESHI ORIGIN RACER DEBUTS",
+        output_path="test_f1bd_render.jpg",
+        font_size=52
     )
     print(f"Rendered test graphic successfully: size={rendered.size}, mode={rendered.mode}")

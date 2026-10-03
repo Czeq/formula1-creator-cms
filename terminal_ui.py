@@ -1,5 +1,5 @@
 """
-Balshi Instagram CMS - Terminal UI & Styling Module (terminal_ui.py)
+Formula 1 BD Instagram CMS - Terminal UI & Styling Module (terminal_ui.py)
 Provides ANSI styling, ASCII art branding, clean formatted dashboards, and queue visualization.
 """
 
@@ -44,12 +44,12 @@ BOLD = "\033[1m"
 RESET = "\033[0m"
 
 ASCII_LOGO = r"""
-  ██████╗   █████╗  ██╗     ███████╗██╗  ██╗██╗
-  ██╔══██╗ ██╔══██╗ ██║     ██╔════╝██║  ██║██║
-  ██████╔╝ ███████║ ██║     ███████╗███████║██║
-  ██╔══██╗ ██╔══██║ ██║     ╚════██║██╔══██║██║
-  ██████╔╝ ██║  ██║ ███████╗███████║██║  ██║██║
-  ╚═════╝  ╚═╝  ╚═╝ ╚══════╝╚══════╝╚═╝  ╚═╝╚═╝
+  ███████╗ ██╗    ██████╗  ██████╗ 
+  ██╔════╝███║    ██╔══██╗ ██╔══██╗
+  █████╗  ╚██║    ██████╔╝ ██║  ██║
+  ██╔══╝   ██║    ██╔══██╗ ██║  ██║
+  ██║      ██║    ██████╔╝ ██████╔╝
+  ╚═╝      ╚═╝    ╚═════╝  ╚═════╝ 
 """
 
 # ASCII Database Icon (stacked cylinders)
@@ -68,14 +68,14 @@ def clear_screen() -> None:
 
 
 def print_banner(service_name: str, extra_info: Optional[List[str]] = None, clear: bool = True) -> None:
-    """Displays the Balshi ASCII art banner and startup status."""
+    """Displays the Formula 1 BD ASCII art banner and startup status."""
     if clear:
         clear_screen()
-    print(CYAN + ASCII_LOGO + RESET)
-    print(YELLOW + "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" + RESET)
-    print(BOLD + WHITE + "                   BALSHI INSTAGRAM CREATOR STUDIO                    " + RESET)
-    print(GRAY + "      1170×1463 3-Layer Compositor  •  Meta Graph API v21.0           " + RESET)
-    print(YELLOW + "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" + RESET)
+    print(RED + ASCII_LOGO + RESET)
+    print(RED + "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" + RESET)
+    print(BOLD + WHITE + "                FORMULA 1 BD INSTAGRAM CREATOR STUDIO                 " + RESET)
+    print(GRAY + "     1080×1080 (1:1) / 1080×1350 (4:5)  •  Meta Graph API v21.0       " + RESET)
+    print(RED + "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" + RESET)
     print(f"\n  {MAGENTA}▶ SERVICE:{RESET} {BOLD}{WHITE}{service_name}{RESET}")
     if extra_info:
         for line in extra_info:

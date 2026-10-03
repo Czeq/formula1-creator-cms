@@ -1,8 +1,8 @@
 """
-Balshi Instagram CMS - Graph API Publisher Daemon (publisher.py)
+Formula 1 BD Instagram CMS - Graph API Publisher Daemon (publisher.py)
 Background service that queries SQLite WAL for due scheduled posts, exposes a
 temporary threaded HTTP server via pyngrok (Static Domain), orchestrates Meta
-Instagram Graph API v21.0 container creation, status polling, publication, and cleanup.
+Instagram Graph API v21.0 container creation, status polling, publication to @formula1.bd, and cleanup.
 """
 
 import os
@@ -56,13 +56,13 @@ _file_handler_added = False
 
 def render_dashboard(posts: List[Dict[str, Any]], error_msg: Optional[str] = None) -> None:
     """
-    Clears the terminal and renders the dynamic Balshi Publisher dashboard.
+    Clears the terminal and renders the dynamic Formula 1 BD Publisher dashboard.
     - IDLE state (red)  : when no Scheduled posts are due.
     - ONLINE state (green): when 1+ posts are queued/due.
     Displays the ASCII_DB_ICON, status badge, queue table, and a live timestamp.
     """
     clear_screen()
-    print_banner("BALSHI PUBLISHER", extra_info=[ASCII_DB_ICON.strip()], clear=False)
+    print_banner("FORMULA 1 BD PUBLISHER", extra_info=[ASCII_DB_ICON.strip()], clear=False)
 
     now_str = datetime.now().strftime("%A, %d %b %Y  %H:%M:%S")
     print(f"\033[90m  ⏱  Local time: {now_str}\033[0m\n")
@@ -412,7 +412,7 @@ def main() -> None:
             time.sleep(1)
     except (KeyboardInterrupt, SystemExit):
         clear_screen()
-        print_banner("BALSHI PUBLISHER", extra_info=["Publisher daemon stopped gracefully. Goodbye!"], clear=False)
+        print_banner("FORMULA 1 BD PUBLISHER", extra_info=["Publisher daemon stopped gracefully. Goodbye!"], clear=False)
         print(f"\033[1;33m  👋 Publisher daemon stopped. Have a great day!\033[0m\n")
 
 

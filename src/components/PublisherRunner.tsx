@@ -57,7 +57,7 @@ export const PublisherRunner: React.FC<PublisherRunnerProps> = ({
   const [isRunning, setIsRunning] = useState(false);
   const [logs, setLogs] = useState<string[]>([
     '[INIT] Publisher daemon initialized. Schedule frequency: 60s.',
-    '[DB] Connected to balshi_posts.db in WAL journal mode.',
+    '[DB] Connected to formula1_posts.db in WAL journal mode.',
   ]);
   const [selectedPostId, setSelectedPostId] = useState<number | null>(
     scheduledPosts[0]?.id || null
@@ -92,9 +92,9 @@ export const PublisherRunner: React.FC<PublisherRunnerProps> = ({
       updateStep(1, 'completed', 'Threaded server running in background daemon thread (server_thread.start())');
 
       // Step 2: Ngrok Tunnel
-      updateStep(2, 'active', 'Connecting pyngrok with Static Domain configuration (balshi-creator.ngrok-free.app)...');
+      updateStep(2, 'active', 'Connecting pyngrok with Static Domain configuration (f1bd-creator.ngrok-free.app)...');
       await new Promise((r) => setTimeout(r, 1400));
-      const exposedUrl = `https://balshi-creator.ngrok-free.app/${activePost.image_path.split('/').pop()}`;
+      const exposedUrl = `https://f1bd-creator.ngrok-free.app/${activePost.image_path.split('/').pop()}`;
       updateStep(2, 'completed', `Public image exposed to Meta crawler: ${exposedUrl}`);
 
       // Step 3: Container Creation
@@ -111,7 +111,7 @@ export const PublisherRunner: React.FC<PublisherRunnerProps> = ({
       updateStep(4, 'completed', `[Poll #2] Container ${mockContainerId} status: FINISHED (Processing completed by Meta)`);
 
       // Step 5: Publish
-      updateStep(5, 'active', `Publishing container to @balshi feed: POST /v21.0/178414001928374/media_publish`);
+      updateStep(5, 'active', `Publishing container to @formula1.bd feed: POST /v21.0/178414001928374/media_publish`);
       await new Promise((r) => setTimeout(r, 1500));
       const mockIgPostId = '18392019482910394';
       updateStep(5, 'completed', `🎉 Successfully posted to Instagram! Instagram Media ID: ${mockIgPostId}`);
@@ -120,7 +120,7 @@ export const PublisherRunner: React.FC<PublisherRunnerProps> = ({
       updateStep(6, 'active', 'Executing teardown: ngrok.disconnect(), httpd.shutdown(), shutil.move(), SQLite status update...');
       await new Promise((r) => setTimeout(r, 1000));
       const destPath = `published/${activePost.image_path.split('/').pop()}`;
-      updateStep(6, 'completed', `Moved to ${destPath} and updated balshi_posts.db status='Posted'`);
+      updateStep(6, 'completed', `Moved to ${destPath} and updated formula1_posts.db status='Posted'`);
 
       onCompletePost(activePost.id);
     } catch (e: any) {
@@ -134,7 +134,7 @@ export const PublisherRunner: React.FC<PublisherRunnerProps> = ({
     setSteps(INITIAL_STEPS);
     setLogs([
       '[INIT] Publisher daemon reset. Ready for next cycle.',
-      '[DB] Connected to balshi_posts.db in WAL journal mode.',
+      '[DB] Connected to formula1_posts.db in WAL journal mode.',
     ]);
   };
 

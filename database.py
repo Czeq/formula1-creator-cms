@@ -1,5 +1,5 @@
 """
-Balshi Instagram CMS - Database Module (database.py)
+Formula 1 BD Instagram CMS - Database Module (database.py)
 Handles SQLite database connection, table initialization, and CRUD operations.
 Configured with check_same_thread=False and WAL journal mode for multi-threaded safety.
 """
@@ -8,7 +8,7 @@ import sqlite3
 import time
 from typing import List, Dict, Any, Optional
 
-DB_FILE = "balshi_posts.db"
+DB_FILE = "formula1_posts.db"
 
 
 def get_connection(db_path: str = DB_FILE) -> sqlite3.Connection:
@@ -27,7 +27,7 @@ def get_connection(db_path: str = DB_FILE) -> sqlite3.Connection:
 
 def init_db(db_path: str = DB_FILE) -> None:
     """
-    Initializes the balshi_posts schema if it does not already exist.
+    Initializes the formula1_posts schema if it does not already exist.
     """
     conn = get_connection(db_path)
     with conn:
