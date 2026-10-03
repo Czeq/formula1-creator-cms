@@ -31,6 +31,7 @@ import {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'studio' | 'queue' | 'publisher' | 'code' | 'setup'>('studio');
+  const [selectedPublishPostId, setSelectedPublishPostId] = useState<number | null>(null);
 
   // Synchronously initialize posts from localStorage for instant, zero-flicker render
   const [posts, setPosts] = useState<PostItem[]>(getInitialPosts);
@@ -256,6 +257,7 @@ export default function App() {
           <CmsQueue
             posts={posts}
             onTriggerPublish={(post) => {
+              setSelectedPublishPostId(post.id);
               setActiveTab('publisher');
             }}
             onDeletePost={handleDeletePost}
@@ -266,6 +268,7 @@ export default function App() {
           <PublisherRunner
             scheduledPosts={posts.filter((p) => p.status === 'Scheduled')}
             onCompletePost={handleCompletePost}
+            initialPostId={selectedPublishPostId}
           />
         )}
 
